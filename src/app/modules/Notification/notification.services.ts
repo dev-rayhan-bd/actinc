@@ -47,7 +47,7 @@ interface BroadcastPayload {
   title: string;
   message: string;
   image?: string;
-  target: 'all' | 'users' | 'vendors';
+  target: 'all' | 'users' | 'company';
   actionLink?: string;
 }
 
@@ -62,10 +62,10 @@ const sendBroadcastNotification = async (payload: BroadcastPayload) => {
 
   if (target === 'users') {
     filter.role = 'user';
-  } else if (target === 'vendors') {
-    filter.role = 'vendor';
+  } else if (target === 'company') {
+    filter.role = 'company';
   }
-  // target === 'all' → no role filter (includes users, vendors, admins etc.)
+  // target === 'all' → no role filter (includes users, company, admins etc.)
 
   const totalUsers = await User.countDocuments(filter);
   if (totalUsers === 0) {

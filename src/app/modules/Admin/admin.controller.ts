@@ -72,26 +72,6 @@ const resetPassword = catchAsync(async (req, res) => {
   });
 });
 
-const approveVendor = catchAsync(async (req, res) => {
-  const result = await AdminServices.approveVendorRequest(req.params.id as string);
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: 'Vendor approved successfully',
-    data: result,
-  });
-});
-
-const getPendingVendors = catchAsync(async (req, res) => {
-  const result = await AdminServices.getPendingVendorsFromDB(req.query);
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: 'Pending vendors retrieved',
-    data: result,
-  });
-});
-
 const createAdmin = catchAsync(async (req, res) => {
   const result = await AdminServices.createAdminInDB(req.body);
   sendResponse(res, {
@@ -151,8 +131,6 @@ export const AdminControllers = {
   changePassword,
   forgotPassword,
   resetPassword,
-  approveVendor,
-  getPendingVendors,
   createAdmin,
   resendOtp,
   blockUnblockUser,

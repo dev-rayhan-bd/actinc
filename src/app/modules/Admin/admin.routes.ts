@@ -29,18 +29,6 @@ router.post(
 );
 
 
-router.get(
-  '/pending-vendors',
-  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
-  AdminControllers.getPendingVendors
-);
-
-router.patch(
-  '/approve-vendor/:id',
-  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
-  AdminControllers.approveVendor
-);
-
 
 router.post(
   '/create-admin',

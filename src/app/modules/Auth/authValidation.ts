@@ -16,9 +16,11 @@ export const AuthValidation = {
 
   // ── Flow 1, 2, 4: Email/Password Login ──
   loginSchema: z.object({
-    identifier: z.string({ required_error: 'Email or Phone is required' }),
-    password: z.string({ required_error: 'Password is required' }),
-    fcmToken: z.string().optional(),
+    body: z.object({
+      identifier: z.string({ required_error: 'Email or Phone is required' }),
+      password: z.string({ required_error: 'Password is required' }),
+      fcmToken: z.string().optional(),
+    }),
   }),
 
   // ── Flow 3: Employee ID Login ──
@@ -53,26 +55,36 @@ export const AuthValidation = {
   }),
 
   changePasswordSchema: z.object({
-    oldPassword: z.string().min(1, 'Old password is required'),
-    newPassword: z.string().min(8, 'New password must be 8 characters'),
+    body: z.object({
+      oldPassword: z.string().min(1, 'Old password is required'),
+      newPassword: z.string().min(8, 'New password must be 8 characters'),
+    }),
   }),
 
   verifyOtpSchema: z.object({
-    identifier: z.string({ required_error: 'Email or phone is required' }),
-    otp: z.string().length(6, { message: 'OTP must be 6 digits' }),
+    body: z.object({
+      identifier: z.string({ required_error: 'Email or phone is required' }),
+      otp: z.string().length(6, { message: 'OTP must be 6 digits' }),
+    }),
   }),
 
   forgotPasswordSchema: z.object({
-    phone: z.string(),
+    body: z.object({
+      phone: z.string(),
+    }),
   }),
 
   resetPasswordSchema: z.object({
-    phone: z.string(),
-    otp: z.string().length(6),
-    newPassword: z.string().min(8),
+    body: z.object({
+      phone: z.string(),
+      otp: z.string().length(6),
+      newPassword: z.string().min(8),
+    }),
   }),
 
   refreshTokenValidationSchema: z.object({
-    refreshToken: z.string({ required_error: 'Refresh Token is required!' }),
+    body: z.object({
+      refreshToken: z.string({ required_error: 'Refresh Token is required!' }),
+    }),
   }),
 };

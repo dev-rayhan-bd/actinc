@@ -79,43 +79,6 @@ const createAdminInDB = async (payload: any) => {
 };
 
 
-const approveVendorRequest = async (id: string) => {
-  const user = await User.findById(id);
-  if (!user || !user.vendor) throw new AppError(httpStatus.NOT_FOUND, 'Invalid vendor request');
-
-  const result = await User.findByIdAndUpdate(
-    id,
-    {
-      role: 'vendor',
-      status: 'active',
-      'vendor.isProfileCompleted': true,
-    },
-    { new: true }
-  );
-
-  // Trigger vendor approval notification (fire-and-forget)
-  sendNotification(
-    id,
-    'Vendor Application Approved! 🎉',
-    'Congratulations! Your vendor application has been approved. Your profile is now active.',
-    'vendor_approved',
-    { action: 'vendor_approved' }
-  );
-
-  return result;
-};
-
-const getPendingVendorsFromDB = async (query: Record<string, unknown>) => {
-  const pendingQuery = new QueryBuilder(
-    User.find({ role: 'user', status: 'pending' }), 
-    query
-  ).filter().sort().paginate();
-
-  const result = await pendingQuery.modelQuery;
-  const meta = await pendingQuery.countTotal();
-  return { meta, result };
-};
-
 
 const updateAdminProfile = async (id: string, payload: any) => {
   // Strip sensitive fields — no admin can change their role, status, or delete themselves via profile update
@@ -270,8 +233,6 @@ const getAllAdminsFromDB = async (query: Record<string, unknown>) => {
 export const AdminServices = { 
   loginAdminFromDB, 
   createAdminInDB, 
-  approveVendorRequest, 
-  getPendingVendorsFromDB, 
   getAllAdminsFromDB,
   updateAdminProfile, 
   changeAdminPassword, 

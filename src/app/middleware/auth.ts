@@ -9,7 +9,7 @@ import { User } from '../modules/User/user.model';
 import { Admin } from '../modules/Admin/admin.model';
 
 // Allowed roles for auth guard
-export type TAuthRole = 'superAdmin' | 'admin' | 'company' | 'user' | 'guest' | 'vendor';
+export type TAuthRole = 'superAdmin' | 'admin' | 'company' | 'user' | 'guest';
 
 const auth = (...requiredRoles: TAuthRole[]) => {
   return catchAsync(async (req: Request, res: Response, next: NextFunction) => {

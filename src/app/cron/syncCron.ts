@@ -1,7 +1,6 @@
 import cron from 'node-cron';
 import { expireOverduePromotions } from '../modules/Promotion/promotion.services';
 import { expireOverdueBanners } from '../modules/Banner/banner.services';
-import { UserServices } from '../modules/User/user.services';
 
 // ══════════════════════════════════════════════
 //  SCHEDULED CRON JOBS
@@ -30,11 +29,6 @@ export const startCronJobs = () => {
     } catch (error) {
       console.error('❌ [CRON] Banner expiry error:', error);
     }
-  });
-
-  // ── Profile Visibility Nudges: Every Monday at 09:00 ──
-  cron.schedule('0 9 * * 1', async () => {
-    await UserServices.sendProfileNudgeNotifications();
   });
 
   console.log('🟢 Cron jobs registered successfully');

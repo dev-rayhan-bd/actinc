@@ -10,21 +10,21 @@ const uploadImage = upload.single('image') as unknown as RequestHandler;
 
 router.get(
   '/', 
-  auth(USER_ROLE.user, USER_ROLE.vendor, USER_ROLE.superAdmin, USER_ROLE.admin), 
+  auth(USER_ROLE.user, USER_ROLE.superAdmin, USER_ROLE.admin), 
   NotificationControllers.getMyNotifications
 );
 
  //(Mark All as Read)
 router.patch(
   '/mark-all-read',
-   auth(USER_ROLE.user, USER_ROLE.vendor, USER_ROLE.superAdmin, USER_ROLE.admin),
+   auth(USER_ROLE.user, USER_ROLE.superAdmin, USER_ROLE.admin),
   NotificationControllers.markAllAsRead
 );
 
 
 router.patch(
   '/mark-read/:id',
-   auth(USER_ROLE.user, USER_ROLE.vendor, USER_ROLE.superAdmin, USER_ROLE.admin),
+   auth(USER_ROLE.user, USER_ROLE.superAdmin, USER_ROLE.admin),
   NotificationControllers.markSingleAsRead
 );
 
