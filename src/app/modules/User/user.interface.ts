@@ -1,6 +1,8 @@
 import { Model, Types } from 'mongoose';
 
-export type TUserRole = 'user' | 'vendor' | 'admin' | 'superAdmin';
+export type TUserRole = 'user' | 'vendor' | 'admin' | 'superAdmin' | 'company' | 'guest';
+
+export type TAuthType = 'email' | 'employeeId' | 'anonymous';
 
 export interface TVendorAvailability {
   day: string; // e.g., 'Monday'
@@ -42,13 +44,17 @@ export interface TUser {
   firstName: string;
   lastName: string;
   fullName: string;
-  email: string;
-  phone: string;
+  email?: string;
+  phone?: string;
   password?: string;
   image?: string;
   lat?: number;
   long?: number;
   role: TUserRole;
+  authType: TAuthType;
+  employeeId?: string;
+  companyId?: Types.ObjectId;
+  teamId?: Types.ObjectId;
   status: 'pending' | 'active' | 'blocked';
   isOtpVerified: boolean;
   otp?: string | null;

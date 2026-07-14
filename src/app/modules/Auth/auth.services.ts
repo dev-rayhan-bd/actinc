@@ -1,14 +1,18 @@
 import httpStatus from 'http-status';
 import bcrypt from 'bcrypt';
+import { Types } from 'mongoose';
 import AppError from '../../errors/AppError';
 import { User } from '../User/user.model';
+import { Company } from '../Company/company.model';
+import { Team } from '../Team/team.model';
 import { createToken, verifyToken } from './auth.utils';
 import config from '../../config';
 import { sendOTP } from '../../utils/twilio';
 import { getEmailTemplate } from '../../utils/emailTemplate';
 import sendEmail from '../../utils/sendEmail';
-import { TResetPassword } from './auth.interface';
+import { TResetPassword, TEmployeeIdLogin, TGuestLogin } from './auth.interface';
 import { TUser } from '../User/user.interface';
+import { USER_ROLE, AUTH_TYPE } from './auth.constant';
 
 
 
@@ -23,7 +27,7 @@ export const sendOtpToUser = async (user: any, plainOtp: string, title: string, 
   });
 
   await sendEmail({
-    to: user.email,
+    to: user.email!,
     subject: title,
     html,
   });
@@ -41,55 +45,61 @@ export const sendOtpToUser = async (user: any, plainOtp: string, title: string, 
 };
 
 
-const registerUser = async (payload: TUser) => {
-  const isExist = await User.findOne({ $or: [{ email: payload.email }, { phone: payload.phone }] });
-  if (isExist) throw new AppError(409, 'Email or Phone already registered');
+// ─────────────────────────────────────────────
+//  FLOW 4: Email & Password Registration (Website - Standard)
+//  Requires companyId and teamId. Validates team belongs to company.
+// ─────────────────────────────────────────────
+const registerUser = async (payload: TUser & { companyId: string; teamId: string }) => {
+  const { companyId, teamId } = payload;
+
+  // Validate email uniqueness
+  const isExist = await User.findOne({ email: payload.email });
+  if (isExist) throw new AppError(409, 'Email already registered');
+
+  // Validate company exists and is active
+  const company = await Company.findById(companyId);
+  if (!company) throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
+  if (company.status !== 'active') throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
+
+  // Validate team belongs to company
+  const team = await Team.findById(teamId);
+  if (!team) throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
+  if (team.companyId.toString() !== companyId) throw new AppError(httpStatus.BAD_REQUEST, 'Team does not belong to this company');
 
   const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  
-  payload.otp = plainOtp;
-  payload.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-  payload.role = 'user'; 
-  payload.status = 'active'; 
-  payload.isOtpVerified = false;
 
-  // ── Security: Strip restricted fields that users must not set ──
-  delete (payload as any).isSponsored;
-  delete (payload as any).isFeatured;
-  delete (payload as any).isDeleted;
-  if (payload.vendor) {
-    delete (payload.vendor as any).isVerifiedBadge;
-    delete (payload.vendor as any).isProfileCompleted;
-    delete (payload.vendor as any).profileScore;
-    delete (payload.vendor as any).passwordChangedAt;
-  }
+  const userData: Partial<TUser> = {
+    firstName: payload.firstName,
+    lastName: payload.lastName,
+    email: payload.email,
+    password: payload.password,
+    role: 'user',
+    authType: 'email',
+    companyId: new Types.ObjectId(companyId),
+    teamId: new Types.ObjectId(teamId),
+    status: 'active',
+    isOtpVerified: false,
+    otp: plainOtp,
+    otpExpires: new Date(Date.now() + 10 * 60 * 1000),
+  };
 
-  const newUser = await User.create(payload);
+  const newUser = await User.create(userData);
 
-  // --- Send OTP via Email (primary channel) ---
-  // v2: To also send SMS, set SMS_ENABLED=true in .env — sendOtpToUser handles it
+  // Send OTP via Email
   try {
     const emailHtml = getEmailTemplate({
       userName: payload.firstName,
       title: 'Verify Your Account',
-      body: 'Welcome to WePlan! Use the verification code below to activate your account.',
+      body: 'Welcome to ActInc! Use the verification code below to activate your account.',
       otpCode: plainOtp,
     });
     await sendEmail({
-      to: payload.email,
-      subject: 'Your WePlan Verification Code',
+      to: payload.email!,
+      subject: 'Your ActInc Verification Code',
       html: emailHtml,
     });
     console.log('✅ OTP sent via Email to:', payload.email);
-
-    // v2: SMS OTP (parallel, non-blocking)
-    if (config.sms_enabled && payload.phone) {
-      sendOTP(payload.phone, plainOtp)
-        .then(() => console.log('✅ OTP also sent via SMS to:', payload.phone))
-        .catch((err: any) => console.warn('⚠️ SMS OTP skipped:', err?.message || err));
-    }
   } catch (emailError: any) {
-    // Email failed → rollback
     await User.findByIdAndDelete(newUser._id);
     console.error('❌ Email OTP failed:', emailError?.message || emailError);
     throw new AppError(502, 'Failed to send OTP via Email. Please try again.');
@@ -131,6 +141,11 @@ const verifyOTPForRegistration = async (identifier: string, otp: string) => {
   };
 };
 
+// ─────────────────────────────────────────────
+//  FLOW 1 & 2: Login via email/password
+//  Supports: superAdmin, admin, company, user roles
+//  For 'company' role — verifies company is active
+// ─────────────────────────────────────────────
 const loginUser = async (payload: { identifier: string; password: string; fcmToken?: string }) => {
   const user = await User.findOne({ $or: [{ email: payload.identifier }, { phone: payload.identifier }] }).select('+password');
   if (!user || user.status === 'blocked' || !user.isOtpVerified) 
@@ -139,12 +154,19 @@ const loginUser = async (payload: { identifier: string; password: string; fcmTok
   const isMatch = await user.isPasswordMatched(payload.password, user.password!);
   if (!isMatch) throw new AppError(httpStatus.FORBIDDEN, 'Incorrect password');
 
-  // Update FCM token for push notifications (latest device)
+  // If user has 'company' role, verify their company is active
+  if (user.role === 'company' && user.companyId) {
+    const company = await Company.findById(user.companyId);
+    if (!company || company.status !== 'active') {
+      throw new AppError(httpStatus.FORBIDDEN, 'Your company account is not active. Contact support.');
+    }
+  }
+
+  // Update FCM token
   if (payload.fcmToken) {
     user.fcmToken = payload.fcmToken;
   }
 
-  // Track last activity for visibility score (fire-and-forget)
   user.lastActiveAt = new Date();
   await user.save();
 
@@ -155,6 +177,181 @@ const loginUser = async (payload: { identifier: string; password: string; fcmTok
     user
   };
 };
+
+// ─────────────────────────────────────────────
+//  FLOW 3: Employee ID Login (Just-in-Time Registration)
+//  If user exists with employeeId in company → login
+//  If not → create new user with role:user, authType:employeeId
+// ─────────────────────────────────────────────
+const employeeIdLogin = async (payload: TEmployeeIdLogin) => {
+  const { employeeId, companyId, teamId, firstName, lastName } = payload;
+
+  // Validate team belongs to company
+  const team = await Team.findById(teamId);
+  if (!team) throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
+  if (team.companyId.toString() !== companyId) throw new AppError(httpStatus.BAD_REQUEST, 'Team does not belong to this company');
+
+  // Validate company is active
+  const company = await Company.findById(companyId);
+  if (!company) throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
+  if (company.status !== 'active') throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
+
+  // Check if user already exists with this employeeId in this company
+  let user = await User.findOne({ employeeId, companyId: new Types.ObjectId(companyId) });
+
+  if (!user) {
+    // Just-in-time registration: create new user
+    user = await User.create({
+      firstName,
+      lastName,
+      fullName: `${firstName} ${lastName}`,
+      employeeId,
+      role: 'user',
+      authType: 'employeeId',
+      companyId: new Types.ObjectId(companyId),
+      teamId: new Types.ObjectId(teamId),
+      status: 'active',
+      isOtpVerified: true, // No OTP needed for employee ID flow
+      lastActiveAt: new Date(),
+    });
+    console.log(`✅ JIT user created via employeeId: ${employeeId} in company ${companyId}`);
+  } else {
+    // Update last active
+    user.lastActiveAt = new Date();
+    await user.save();
+  }
+
+  const jwtPayload = { userId: user._id.toString(), role: user.role, companyId, teamId, authType: 'employeeId' };
+  return {
+    accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in!),
+    refreshToken: createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in!),
+    user,
+  };
+};
+
+// ─────────────────────────────────────────────
+//  FLOW 5: Guest Login (Anonymous via Passcode)
+//  Verifies passcode against Team model.
+//  Issues JWT with role:guest — NO DB record created.
+// ─────────────────────────────────────────────
+const guestLogin = async (payload: TGuestLogin) => {
+  const { passcode, companyId, teamId } = payload;
+
+  // Validate company is active
+  const company = await Company.findById(companyId);
+  if (!company) throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
+  if (company.status !== 'active') throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
+
+  // Validate team belongs to company
+  const team = await Team.findById(teamId);
+  if (!team) throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
+  if (team.companyId.toString() !== companyId) throw new AppError(httpStatus.BAD_REQUEST, 'Team does not belong to this company');
+
+  // Verify passcode against stored hash
+  const isValidPasscode = await Team.isPasscodeValid(teamId, passcode);
+  if (!isValidPasscode) throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid passcode');
+
+  // Issue JWT with guest role — no DB record
+  const jwtPayload = { role: 'guest', companyId, teamId, authType: 'anonymous' };
+  const guestAccessToken = createToken(jwtPayload, config.jwt_access_secret!, config.jwt_guest_access_expires_in || '4h');
+  const guestRefreshToken = createToken(jwtPayload, config.jwt_refresh_secret!, '8h');
+
+  return {
+    accessToken: guestAccessToken,
+    refreshToken: guestRefreshToken,
+    user: null, // No user record for guests
+    message: 'Guest login successful',
+  };
+};
+
+// ─────────────────────────────────────────────
+//  FLOW 6: QR Code Login/Registration
+//  Scans QR code containing encrypted token with companyId, teamId, and optional user data
+//  If user exists → login; if not → register new user
+// ─────────────────────────────────────────────
+const qrCodeLogin = async (payload: { qrToken: string; firstName?: string; lastName?: string; email?: string; phone?: string }) => {
+  const { qrToken, firstName, lastName, email, phone } = payload;
+
+  // Decode and verify QR token
+  let decoded: any;
+  try {
+    decoded = verifyToken(qrToken, config.jwt_access_secret!);
+  } catch (error) {
+    throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid or expired QR code');
+  }
+
+  const { companyId, teamId, type } = decoded;
+  
+  if (type !== 'qr_login') {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Invalid QR code type');
+  }
+
+  // Validate company is active
+  const company = await Company.findById(companyId);
+  if (!company) throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
+  if (company.status !== 'active') throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
+
+  // Validate team belongs to company
+  const team = await Team.findById(teamId);
+  if (!team) throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
+  if (team.companyId.toString() !== companyId) throw new AppError(httpStatus.BAD_REQUEST, 'Team does not belong to this company');
+
+  // Check if user already exists (by email or phone if provided)
+  let user = null;
+  if (email) {
+    user = await User.findOne({ email, companyId: new Types.ObjectId(companyId) });
+  } else if (phone) {
+    user = await User.findOne({ phone, companyId: new Types.ObjectId(companyId) });
+  }
+
+  if (user) {
+    // Existing user - login
+    user.lastActiveAt = new Date();
+    await user.save();
+
+    const jwtPayload = { userId: user._id.toString(), role: user.role, companyId, teamId, authType: 'email' };
+    return {
+      accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in!),
+      refreshToken: createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in!),
+      user,
+      isNewUser: false,
+    };
+  }
+
+  // New user - register
+  if (!firstName || !lastName) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'First name and last name required for new user registration');
+  }
+
+  const authType: 'email' | 'employeeId' | 'anonymous' = email ? 'email' : 'employeeId';
+  const identifier = email || phone;
+
+  user = await User.create({
+    firstName,
+    lastName,
+    fullName: `${firstName} ${lastName}`,
+    email,
+    phone,
+    role: 'user',
+    authType,
+    companyId: new Types.ObjectId(companyId),
+    teamId: new Types.ObjectId(teamId),
+    status: 'active',
+    isOtpVerified: true, // QR code acts as verification
+    lastActiveAt: new Date(),
+  });
+
+  console.log(`✅ New user registered via QR code: ${identifier} in company ${companyId}`);
+
+  const jwtPayload = { userId: user._id.toString(), role: user.role, companyId, teamId, authType };
+  return {
+    accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in!),
+    refreshToken: createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in!),
+    user,
+    isNewUser: true,
+  };
+};
+
 // ---------------------------------------
 
 const resendOTP = async (identifier: string) => {
@@ -270,6 +467,15 @@ const changePassword = async (userId: string, payload: any) => {
 
 const refreshToken = async (token: string) => {
   const decoded = verifyToken(token, config.jwt_refresh_secret!) as any;
+  
+  // Guest token refresh — no DB check needed
+  if (decoded.role === 'guest') {
+    const jwtPayload = { role: 'guest', companyId: decoded.companyId, teamId: decoded.teamId, authType: 'anonymous' };
+    return {
+      accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_guest_access_expires_in || '4h'),
+    };
+  }
+
   const user = await User.findById(decoded.userId);
   if (!user || user.status === 'blocked') throw new AppError(httpStatus.FORBIDDEN, 'Unauthorized');
   return { accessToken: createToken({ userId: user._id.toString(), role: user.role }, config.jwt_access_secret!, '1d') };
@@ -278,4 +484,17 @@ const refreshToken = async (token: string) => {
 
 
 
-export const AuthServices = { registerUser, verifyOTPForRegistration, loginUser, resendOTP, forgotPass, resetPassword, changePassword, refreshToken,sendOtpToUser };
+export const AuthServices = {
+  registerUser,
+  verifyOTPForRegistration,
+  loginUser,
+  employeeIdLogin,
+  guestLogin,
+  qrCodeLogin,
+  resendOTP,
+  forgotPass,
+  resetPassword,
+  changePassword,
+  refreshToken,
+  sendOtpToUser,
+};

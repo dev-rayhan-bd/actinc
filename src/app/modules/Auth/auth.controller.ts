@@ -1,18 +1,44 @@
 import catchAsync from '../../utils/catchAsync';
 import sendResponse from '../../utils/sendResponse';
 import { AuthServices } from './auth.services';
-import uploadImage from '../../middleware/upload';
 
+// ── Flow 4: Email Signup (Employee) ──
 const registerUser = catchAsync(async (req, res) => {
-  const image = req.file ? await uploadImage(req) : '';
-  const result = await AuthServices.registerUser({ ...req.body, image });
-  sendResponse(res, { statusCode: 201, success: true, message: 'OTP sent', data: result });
+  const result = await AuthServices.registerUser(req.body);
+  sendResponse(res, { statusCode: 201, success: true, message: 'OTP sent to email', data: result });
 });
 
+// ── Flow 1, 2, 4: Email/Password Login ──
 const userLogin = catchAsync(async (req, res) => {
   const result = await AuthServices.loginUser(req.body);
   res.cookie('refreshToken', result.refreshToken, { httpOnly: true, secure: true });
   sendResponse(res, { statusCode: 200, success: true, message: 'Login Success', data: result });
+});
+
+// ── Flow 3: Employee ID Login (Just-in-Time) ──
+const employeeIdLogin = catchAsync(async (req, res) => {
+  const result = await AuthServices.employeeIdLogin(req.body);
+  res.cookie('refreshToken', result.refreshToken, { httpOnly: true, secure: true });
+  sendResponse(res, { statusCode: 200, success: true, message: 'Employee ID login successful', data: result });
+});
+
+// ── Flow 5: Guest Login (Anonymous via Passcode) ──
+const guestLogin = catchAsync(async (req, res) => {
+  const result = await AuthServices.guestLogin(req.body);
+  res.cookie('refreshToken', result.refreshToken, { httpOnly: true, secure: true });
+  sendResponse(res, { statusCode: 200, success: true, message: result.message, data: result });
+});
+
+// ── Flow 6: QR Code Login/Registration ──
+const qrCodeLogin = catchAsync(async (req, res) => {
+  const result = await AuthServices.qrCodeLogin(req.body);
+  res.cookie('refreshToken', result.refreshToken, { httpOnly: true, secure: true });
+  sendResponse(res, { 
+    statusCode: 200, 
+    success: true, 
+    message: result.isNewUser ? 'Registration via QR code successful' : 'QR code login successful', 
+    data: result 
+  });
 });
 
 const VerifyOtpForRegistration = catchAsync(async (req, res) => {
@@ -36,7 +62,7 @@ const resetPassword = catchAsync(async (req, res) => {
 });
 
 const changePassword = catchAsync(async (req, res) => {
-  const result = await AuthServices.changePassword(req.user.userId, req.body);
+  const result = await AuthServices.changePassword(req.user.userId!, req.body);
   sendResponse(res, { statusCode: 200, success: true, message: result.message, data: null });
 });
 
@@ -50,4 +76,18 @@ const logout = catchAsync(async (req, res) => {
   sendResponse(res, { statusCode: 200, success: true, message: 'Logged out', data: null });
 });
 
-export const AuthControllers = { registerUser, userLogin, VerifyOtpForRegistration, resendOtp, forgotPassword, resetPassword, changePassword, refreshToken, logout, AdminLogin: userLogin };
+export const AuthControllers = {
+  registerUser,
+  userLogin,
+  employeeIdLogin,
+  guestLogin,
+  qrCodeLogin,
+  VerifyOtpForRegistration,
+  resendOtp,
+  forgotPassword,
+  resetPassword,
+  changePassword,
+  refreshToken,
+  logout,
+  AdminLogin: userLogin,
+};

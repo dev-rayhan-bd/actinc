@@ -33,7 +33,7 @@ const updateProfile = catchAsync(async (req, res) => {
   const data = req.body.data ? JSON.parse(req.body.data) : req.body;
   const payload = { ...data, image: imageUrl };
 
-  const result = await AdminServices.updateAdminProfile(req.user.userId, payload);
+  const result = await AdminServices.updateAdminProfile(req.user.userId!, payload);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -43,7 +43,7 @@ const updateProfile = catchAsync(async (req, res) => {
 });
 
 const changePassword = catchAsync(async (req, res) => {
-  const result = await AdminServices.changeAdminPassword(req.user.userId, req.body);
+  const result = await AdminServices.changeAdminPassword(req.user.userId!, req.body);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -117,7 +117,7 @@ const blockUnblockUser = catchAsync(async (req, res) => {
 });
 
 const deleteAdmin = catchAsync(async (req, res) => {
-  const result = await AdminServices.deleteAdminFromDB(req.params.id as string, req.user.userId);
+  const result = await AdminServices.deleteAdminFromDB(req.params.id as string, req.user.userId!);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -127,7 +127,7 @@ const deleteAdmin = catchAsync(async (req, res) => {
 });
 
 const blockUnblockAdmin = catchAsync(async (req, res) => {
-  const result = await AdminServices.blockUnblockAdmin(req.params.id as string, req.user.userId);
+  const result = await AdminServices.blockUnblockAdmin(req.params.id as string, req.user.userId!);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

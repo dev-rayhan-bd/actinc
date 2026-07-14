@@ -10,11 +10,10 @@ const validateRequest = (schema: ZodObject<ZodRawShape>) => {
  
     // console.log(req?.body);
     const verifiedData = await schema.parseAsync({
-      ...req.body,
+      body: req.body,
       // ...req.cookies,
     });
-    // req.body = verifiedData.body;
-    req.body = verifiedData;
+    req.body = verifiedData.body;
     next();
   });
 };

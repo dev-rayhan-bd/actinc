@@ -6,7 +6,7 @@ import uploadImage from '../../middleware/upload';
 import { NotificationServices } from './notification.services';
 
 const getMyNotifications = catchAsync(async (req: Request, res: Response) => {
-  const result = await NotificationServices.getMyNotificationsFromDB(req.user.userId, req.query);
+  const result = await NotificationServices.getMyNotificationsFromDB(req.user.userId!, req.query);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -16,7 +16,7 @@ const getMyNotifications = catchAsync(async (req: Request, res: Response) => {
 });
 
 const markAllAsRead = catchAsync(async (req: Request, res: Response) => {
-  await NotificationServices.markAllAsReadInDB(req.user.userId);
+  await NotificationServices.markAllAsReadInDB(req.user.userId!);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -26,7 +26,7 @@ const markAllAsRead = catchAsync(async (req: Request, res: Response) => {
 });
 
 const markSingleAsRead = catchAsync(async (req: Request, res: Response) => {
-  const result = await NotificationServices.markSingleAsReadInDB(req.user.userId, req.params.id as string);
+  const result = await NotificationServices.markSingleAsReadInDB(req.user.userId!, req.params.id as string);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

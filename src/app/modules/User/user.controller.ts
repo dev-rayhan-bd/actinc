@@ -18,7 +18,7 @@ const updateProfile = catchAsync(async (req, res) => {
   const data = req.body.data ? JSON.parse(req.body.data) : req.body;
   const payload = { ...data, image: imageUrl };
 
-  const result = await UserServices.updateProfileInDB(req.user.userId, payload);
+  const result = await UserServices.updateProfileInDB(req.user.userId!, payload);
   sendResponse(res, { statusCode: 200, success: true, message: 'Profile updated', data: result });
 });
 
@@ -29,7 +29,7 @@ const setupProfile = catchAsync(async (req, res) => {
   const data = JSON.parse(req.body.data);
   const payload = { ...data, image: imageUrl };
 
-  const result = await UserServices.updateProfileInDB(req.user.userId, payload);
+  const result = await UserServices.updateProfileInDB(req.user.userId!, payload);
   sendResponse(res, { statusCode: 200, success: true, message: 'Profile set up successfully', data: result });
 });
 
@@ -43,7 +43,7 @@ const updatePortfolio = catchAsync(async (req, res) => {
     }
   }
 
-  const result = await UserServices.updateProfileInDB(req.user.userId, {
+  const result = await UserServices.updateProfileInDB(req.user.userId!, {
     $push: { 'vendor.portfolio': { $each: portfolioUrls } }
   } as any);
 
@@ -51,7 +51,7 @@ const updatePortfolio = catchAsync(async (req, res) => {
 });
 
 const updateAvailability = catchAsync(async (req, res) => {
-  const userId = req.user.userId;
+  const userId = req.user.userId!;
   const { availability } = req.body;
 
   const result = await UserServices.manageAvailabilityInDB(userId, availability);
@@ -65,7 +65,7 @@ const updateAvailability = catchAsync(async (req, res) => {
 });
 
 const becomeVendorRequest = catchAsync(async (req, res) => {
-  const userId = req.user.userId;
+  const userId = req.user.userId!;
   const vendorData = req.body;
 
   const result = await UserServices.applyToBecomeVendor(userId, vendorData);
@@ -81,7 +81,7 @@ const becomeVendorRequest = catchAsync(async (req, res) => {
 const getMe = catchAsync(async (req, res) => {
   const { userId } = req.user; 
     const role = req.user.role;
-  const result = await UserServices.getMeFromDB(userId,role);
+  const result = await UserServices.getMeFromDB(userId!, role);
 
   sendResponse(res, {
     statusCode: 200,
@@ -93,7 +93,7 @@ const getMe = catchAsync(async (req, res) => {
 
 const updateAvailabilityStatus = catchAsync(async (req, res) => {
   const result = await UserServices.updateVendorAvailabilityInDB(
-    req.user.userId,
+    req.user.userId!,
     req.body
   );
 
@@ -125,7 +125,7 @@ const getVendorProfile = catchAsync(async (req, res) => {
 // ══════════════════════════════════════════════
 
 const getMyVisibilityTasks = catchAsync(async (req, res) => {
-  const result = await UserServices.getMyVisibilityTasksFromDB(req.user.userId);
+  const result = await UserServices.getMyVisibilityTasksFromDB(req.user.userId!);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

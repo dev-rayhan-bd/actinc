@@ -1,29 +1,62 @@
 import { z } from 'zod';
 
 export const AuthValidation = {
-   registerSchema: z.object({
+  // ── Flow 4: Email Signup (Employee) ──
+  registerSchema: z.object({
     body: z.object({
-      firstName: z.string(),
-      lastName: z.string(),
-      email: z.string().email(),
-      phone: z.string(),
-      password: z.string().min(8),
-      acceptedTerms: z.literal(true),
-       fcmToken: z.string().optional(),
-      role: z.enum(['user', 'vendor']),
+      firstName: z.string().min(1, 'First name is required'),
+      lastName: z.string().min(1, 'Last name is required'),
+      email: z.string().email('Invalid email'),
+      password: z.string().min(8, 'Password must be at least 8 characters'),
+      acceptedTerms: z.literal(true, { errorMap: () => ({ message: 'You must accept the terms' }) }),
+      companyId: z.string({ required_error: 'Company ID is required' }),
+      teamId: z.string({ required_error: 'Team ID is required' }),
     }),
   }),
 
-
+  // ── Flow 1, 2, 4: Email/Password Login ──
   loginSchema: z.object({
-    identifier: z.string({ required_error: "Email or Phone is required" }),
-    password: z.string({ required_error: "Password is required" }),
+    identifier: z.string({ required_error: 'Email or Phone is required' }),
+    password: z.string({ required_error: 'Password is required' }),
     fcmToken: z.string().optional(),
   }),
-changePasswordSchema: z.object({
-    oldPassword: z.string().min(1, "Old password is required"),
-    newPassword: z.string().min(8, "New password must be 8 characters"),
+
+  // ── Flow 3: Employee ID Login ──
+  employeeIdLoginSchema: z.object({
+    body: z.object({
+      employeeId: z.string({ required_error: 'Employee ID is required' }),
+      companyId: z.string({ required_error: 'Company ID is required' }),
+      teamId: z.string({ required_error: 'Team ID is required' }),
+      firstName: z.string({ required_error: 'First name is required' }),
+      lastName: z.string({ required_error: 'Last name is required' }),
+    }),
   }),
+
+  // ── Flow 5: Guest Login (Anonymous via Passcode) ──
+  guestLoginSchema: z.object({
+    body: z.object({
+      passcode: z.string({ required_error: 'Passcode is required' }),
+      companyId: z.string({ required_error: 'Company ID is required' }),
+      teamId: z.string({ required_error: 'Team ID is required' }),
+    }),
+  }),
+
+  // ── Flow 6: QR Code Login/Registration ──
+  qrCodeLoginSchema: z.object({
+    body: z.object({
+      qrToken: z.string({ required_error: 'QR token is required' }),
+      firstName: z.string().optional(),
+      lastName: z.string().optional(),
+      email: z.string().email().optional(),
+      phone: z.string().optional(),
+    }),
+  }),
+
+  changePasswordSchema: z.object({
+    oldPassword: z.string().min(1, 'Old password is required'),
+    newPassword: z.string().min(8, 'New password must be 8 characters'),
+  }),
+
   verifyOtpSchema: z.object({
     identifier: z.string({ required_error: 'Email or phone is required' }),
     otp: z.string().length(6, { message: 'OTP must be 6 digits' }),
@@ -42,5 +75,4 @@ changePasswordSchema: z.object({
   refreshTokenValidationSchema: z.object({
     refreshToken: z.string({ required_error: 'Refresh Token is required!' }),
   }),
-
 };
