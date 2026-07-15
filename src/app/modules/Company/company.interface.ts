@@ -2,12 +2,24 @@ import { Model, Types } from 'mongoose';
 
 export type TCompanyStatus = 'active' | 'inactive' | 'suspended';
 
+export interface TCompanyBranding {
+  primaryColor: string;
+  secondaryColor: string;
+  videoTitle: string;
+  videoDescription: string;
+  presenterName: string;
+  presenterDesignation: string;
+  videoUrl: string;
+}
+
 export interface TCompany {
   name: string;
-  logo?: string;
-  brandColor?: string;
+  email: string;
+  address: string;
+  logo: string;
   slug: string;
   status: TCompanyStatus;
+  branding: TCompanyBranding;
 }
 
 export interface CompanyModel extends Model<TCompany> {

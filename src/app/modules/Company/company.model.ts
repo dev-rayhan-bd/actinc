@@ -1,17 +1,32 @@
 import { Schema, model } from 'mongoose';
-import { TCompany, CompanyModel } from './company.interface';
+import { TCompany, TCompanyBranding, CompanyModel } from './company.interface';
+
+const brandingSubSchema = new Schema<TCompanyBranding>(
+  {
+    primaryColor: { type: String, default: '#8ACDDE' },
+    secondaryColor: { type: String, default: '#E9308F' },
+    videoTitle: { type: String, default: '' },
+    videoDescription: { type: String, default: '' },
+    presenterName: { type: String, default: '' },
+    presenterDesignation: { type: String, default: '' },
+    videoUrl: { type: String, default: '' },
+  },
+  { _id: false },
+);
 
 const companySchema = new Schema<TCompany, CompanyModel>(
   {
     name: { type: String, required: true, trim: true },
+    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
+    address: { type: String, default: '' },
     logo: { type: String, default: '' },
-    brandColor: { type: String, default: '#3B82F6' },
     slug: { type: String, required: true, unique: true, lowercase: true, trim: true },
     status: {
       type: String,
       enum: ['active', 'inactive', 'suspended'],
       default: 'active',
     },
+    branding: { type: brandingSubSchema, default: () => ({}) },
   },
   { timestamps: true },
 );

@@ -89,5 +89,4 @@ export const AuthControllers = {
   changePassword,
   refreshToken,
   logout,
-  AdminLogin: userLogin,
 };

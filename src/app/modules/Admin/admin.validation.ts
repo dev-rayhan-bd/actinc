@@ -16,7 +16,7 @@ export const AdminValidation = {
     body: z.object({
       identifier: z.string(), // email or phone
       password: z.string(),
-    }),
+      }),
   }),
 
   updateProfileSchema: z.object({

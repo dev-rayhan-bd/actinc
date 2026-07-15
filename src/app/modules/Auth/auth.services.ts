@@ -7,7 +7,6 @@ import { Company } from '../Company/company.model';
 import { Team } from '../Team/team.model';
 import { createToken, verifyToken } from './auth.utils';
 import config from '../../config';
-import { sendOTP } from '../../utils/twilio';
 import { getEmailTemplate } from '../../utils/emailTemplate';
 import sendEmail from '../../utils/sendEmail';
 import { TResetPassword, TEmployeeIdLogin, TGuestLogin } from './auth.interface';
@@ -32,16 +31,6 @@ export const sendOtpToUser = async (user: any, plainOtp: string, title: string, 
     html,
   });
   console.log('✅ OTP sent via Email to:', user.email);
-
-  // --- v2: SMS OTP — enable by setting SMS_ENABLED=true in .env ---
-  if (config.sms_enabled && user.phone) {
-    try {
-      await sendOTP(user.phone, plainOtp);
-      console.log('✅ OTP also sent via SMS to:', user.phone);
-    } catch (smsError: any) {
-      console.warn('⚠️ SMS OTP skipped (optional channel):', smsError?.message || smsError);
-    }
-  }
 };
 
 

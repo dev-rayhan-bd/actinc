@@ -4,7 +4,6 @@ import AppError from '../../errors/AppError';
 import { Admin } from './admin.model';
 import { User } from '../User/user.model'; 
 import QueryBuilder from '../../builder/QueryBuilder';
-import { sendOTP } from '../../utils/twilio';
 import { getEmailTemplate } from '../../utils/emailTemplate';
 import sendEmail from '../../utils/sendEmail';
 import config from '../../config';
@@ -30,16 +29,6 @@ const sendOtpToAdmin = async (admin: any, plainOtp: string, title: string) => {
     console.log("✅ OTP sent via Email to:", admin.email);
   } else {
     throw new AppError(httpStatus.BAD_REQUEST, "Admin email is required for OTP");
-  }
-
-  // --- v2: SMS OTP — enable by setting SMS_ENABLED=true in .env ---
-  if (config.sms_enabled && admin.phone) {
-    try {
-      await sendOTP(admin.phone, plainOtp);
-      console.log("✅ OTP also sent via SMS to:", admin.phone);
-    } catch (smsError: any) {
-      console.warn("⚠️ SMS OTP skipped (optional channel):", smsError?.message || smsError);
-    }
   }
 };
 

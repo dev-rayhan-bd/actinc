@@ -26,10 +26,6 @@ super_admin_email: process.env.SUPER_ADMIN_EMAIL,
   super_admin_password: process.env.SUPER_ADMIN_PASSWORD,
   super_admin_first_name: process.env.SUPER_ADMIN_FIRST_NAME,
   super_admin_last_name: process.env.SUPER_ADMIN_LAST_NAME,
-  twilio_sid: process.env.TWILIO_SID,
-  twilio_auth_token: process.env.TWILIO_AUTH_TOKEN,
-  twilio_phone_number: process.env.TWILIO_PHONE_NUMBER,
-  sms_enabled: process.env.SMS_ENABLED === 'true',
   jwt_guest_access_expires_in: process.env.JWT_GUEST_ACCESS_EXPIRES_IN || '4h',
 
 };

@@ -20,12 +20,6 @@ router.post('/login',
   AuthControllers.userLogin,
 );
 
-// ── Flow 1: ActInc Internal Login (Admin / SuperAdmin) ──
-router.post('/admin/login',
-  validateRequest(AuthValidation.loginSchema),
-  AuthControllers.AdminLogin,
-);
-
 // ── Flow 3: Employee ID Login (Just-in-Time Registration) ──
 router.post('/employee-id-login',
   validateRequest(AuthValidation.employeeIdLoginSchema),

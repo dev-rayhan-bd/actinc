@@ -6,7 +6,7 @@ import { IUserMethods, TUser, UserModel } from "./user.interface";
 const userSchema = new Schema<TUser, UserModel, IUserMethods>(
   {
     firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
+    lastName: { type: String, default: '' },
     fullName: { type: String },
     image: { type: String, default: "" },
     email: { type: String, sparse: true, unique: true },
@@ -56,7 +56,7 @@ userSchema.pre("save", async function () {
       Number(config.bcrypt_salt_rounds),
     );
   }
-  this.fullName = `${this.firstName} ${this.lastName}`;
+  this.fullName = this.lastName ? `${this.firstName} ${this.lastName}` : this.firstName;
 });
 
 // Instance Method

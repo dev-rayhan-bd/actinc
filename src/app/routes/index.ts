@@ -8,6 +8,8 @@ import { FaqRoutes } from '../modules/FAQ/faq.routes';
 import { ContactRoutes } from '../modules/ContactUs/contact.route';
 import { NotificationRoutes } from '../modules/Notification/notification.routes';
 import { AdminRoutes } from '../modules/Admin/admin.routes';
+import { CompanyRoutes } from '../modules/Company/company.routes';
+import { TeamRoutes } from '../modules/Team/team.routes';
 
 
 const router = Router();
@@ -44,7 +46,8 @@ const moduleRoutes = [
 
   { path: '/notification', route: NotificationRoutes },  
   { path: '/admin', route: AdminRoutes },
-
+  { path: '/company', route: CompanyRoutes },
+  { path: '/team', route: TeamRoutes },
 
 ];
 

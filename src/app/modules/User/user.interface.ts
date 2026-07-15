@@ -6,8 +6,8 @@ export type TAuthType = 'email' | 'employeeId' | 'anonymous';
 
 export interface TUser {
   firstName: string;
-  lastName: string;
-  fullName: string;
+  lastName?: string;
+  fullName?: string;
   image?: string;
   email?: string;
   phone?: string;

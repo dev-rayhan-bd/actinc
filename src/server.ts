@@ -7,7 +7,7 @@ import config from './app/config';
 import seedAdmin from './app/DB';
 import 'dotenv/config';
 import { initializeSocket } from './app/utils/socket';
-import { startCronJobs } from './app/cron/syncCron';
+// import { startCronJobs } from './app/cron/syncCron';
 
 
 
@@ -20,7 +20,7 @@ async function main() {
  await seedAdmin(); 
 
     // Start scheduled cron jobs (Promotion & Banner expiry)
-    startCronJobs();
+    // startCronJobs();
 
     server = app.listen(config.port, () => {
       console.log(`app is listening on port ${config.port}`);
