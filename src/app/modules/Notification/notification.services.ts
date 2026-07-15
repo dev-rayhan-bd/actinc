@@ -101,9 +101,60 @@ const sendBroadcastNotification = async (payload: BroadcastPayload) => {
   return { message: `Broadcast sent to ${sentCount} users.`, totalSent: sentCount };
 };
 
+// ── Broadcast to Company Users (DB-persistent, no sockets) ──
+interface BroadcastToCompaniesPayload {
+  title: string;
+  message: string;
+  targetType: 'global' | 'targeted';
+  companyId?: string;
+}
+
+const broadcastToCompanies = async (payload: BroadcastToCompaniesPayload) => {
+  const { title, message, targetType, companyId } = payload;
+
+  // Build filter: only active company users
+  const filter: Record<string, unknown> = {
+    role: 'company',
+    status: 'active',
+    isDeleted: false,
+  };
+
+  if (targetType === 'targeted') {
+    if (!companyId) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'companyId is required for targeted broadcast');
+    }
+    filter.companyId = companyId;
+  }
+
+  // Fetch all matching company users
+  const users = await User.find(filter).select('_id').lean();
+
+  if (users.length === 0) {
+    return { message: 'No active company users found.', totalSent: 0 };
+  }
+
+  // Build notification documents for insertMany
+  const notifications = users.map((u) => ({
+    user: u._id,
+    title,
+    message,
+    type: 'broadcast' as const,
+    isRead: false,
+    data: {},
+  }));
+
+  await NotificationModel.insertMany(notifications, { ordered: false });
+
+  return {
+    message: `Broadcast sent to ${users.length} company user(s).`,
+    totalSent: users.length,
+  };
+};
+
 export const NotificationServices = {
   getMyNotificationsFromDB,
   markAllAsReadInDB,
   markSingleAsReadInDB,
   sendBroadcastNotification,
+  broadcastToCompanies,
 };

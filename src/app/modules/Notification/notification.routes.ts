@@ -1,8 +1,10 @@
 import express, { RequestHandler } from 'express';
 import auth from '../../middleware/auth';
+import validateRequest from '../../middleware/validateRequest';
 import { upload } from '../../middleware/multer';
 import { USER_ROLE } from '../Auth/auth.constant';
 import { NotificationControllers } from './notification.controller';
+import { NotificationValidation } from './notification.validation';
 
 const router = express.Router();
 const uploadImage = upload.single('image') as unknown as RequestHandler;
@@ -34,6 +36,14 @@ router.post(
   auth(USER_ROLE.superAdmin, USER_ROLE.admin),
   uploadImage,
   NotificationControllers.broadcastNotification,
+);
+
+// ── Admin: Broadcast to Company Users ──
+router.post(
+  '/broadcast-to-companies',
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin),
+  validateRequest(NotificationValidation.broadcastToCompaniesSchema),
+  NotificationControllers.broadcastToCompanies,
 );
 
 export const NotificationRoutes = router;

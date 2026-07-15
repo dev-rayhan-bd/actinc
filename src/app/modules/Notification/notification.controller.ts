@@ -62,9 +62,29 @@ const broadcastNotification = catchAsync(async (req: Request, res: Response) => 
   });
 });
 
+// ── Broadcast to Company Users ──
+const broadcastToCompanies = catchAsync(async (req: Request, res: Response) => {
+  const { title, message, targetType, companyId } = req.body;
+
+  const result = await NotificationServices.broadcastToCompanies({
+    title,
+    message,
+    targetType,
+    companyId,
+  });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: result.message,
+    data: { totalSent: result.totalSent },
+  });
+});
+
 export const NotificationControllers = {
   getMyNotifications,
   markAllAsRead,
   markSingleAsRead,
   broadcastNotification,
+  broadcastToCompanies,
 };
