@@ -27,6 +27,7 @@ const companySchema = new Schema<TCompany, CompanyModel>(
       default: 'active',
     },
     branding: { type: brandingSubSchema, default: () => ({}) },
+    isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true },
 );

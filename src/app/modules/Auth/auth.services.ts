@@ -23,6 +23,8 @@ export const sendOtpToUser = async (user: any, plainOtp: string, title: string, 
     title,
     body: `Your verification code is below. Please use it within 10 minutes.`,
     otpCode: plainOtp,
+    codeLabel: 'Verification Code',
+    codeExpiry: 'Valid for the next 10 minutes.',
   });
 
   await sendEmail({
@@ -81,6 +83,8 @@ const registerUser = async (payload: TUser & { companyId: string; teamId: string
       title: 'Verify Your Account',
       body: 'Welcome to ActInc! Use the verification code below to activate your account.',
       otpCode: plainOtp,
+      codeLabel: 'Verification Code',
+      codeExpiry: 'Valid for the next 10 minutes.',
     });
     await sendEmail({
       to: payload.email!,

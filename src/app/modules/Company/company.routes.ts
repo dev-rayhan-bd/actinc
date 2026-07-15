@@ -47,10 +47,17 @@ router.patch(
   CompanyControllers.updateBranding,
 );
 
+router.patch(
+  '/:id/status',
+  auth(USER_ROLE.superAdmin),
+  validateRequest(CompanyValidation.updateCompanyStatusSchema),
+  CompanyControllers.updateCompanyStatus,
+);
+
 router.delete(
   '/:id',
   auth(USER_ROLE.superAdmin),
-  CompanyControllers.softDeleteCompany,
+  CompanyControllers.deleteCompany,
 );
 
 export const CompanyRoutes = router;

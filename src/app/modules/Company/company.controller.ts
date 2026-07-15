@@ -77,12 +77,22 @@ const updateBranding = catchAsync(async (req, res) => {
   });
 });
 
-const softDeleteCompany = catchAsync(async (req, res) => {
-  const result = await CompanyServices.softDeleteCompanyFromDB(req.params.id as string);
+const updateCompanyStatus = catchAsync(async (req, res) => {
+  const result = await CompanyServices.updateCompanyStatusInDB(req.params.id as string, req.body.status);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Company soft-deleted successfully',
+    message: 'Company status updated successfully',
+    data: result,
+  });
+});
+
+const deleteCompany = catchAsync(async (req, res) => {
+  const result = await CompanyServices.deleteCompanyFromDB(req.params.id as string);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Company deleted successfully',
     data: result,
   });
 });
@@ -92,6 +102,7 @@ export const CompanyControllers = {
   getAllCompanies,
   getSingleCompany,
   updateCompany,
+  updateCompanyStatus,
   updateBranding,
-  softDeleteCompany,
+  deleteCompany,
 };

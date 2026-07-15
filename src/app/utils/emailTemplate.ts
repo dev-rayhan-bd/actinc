@@ -3,6 +3,9 @@ interface IEmailOptions {
   title: string;
   body: string;
   otpCode?: string;
+  codeLabel?: string;        // e.g. "Verification Code", "Your Temporary Password"
+  codeExpiry?: string;       // e.g. "Valid for the next 10 minutes."
+  codeExpiryLabel?: string;  // label above expiry text
   buttonText?: string;
   buttonLink?: string;
 }
@@ -12,12 +15,15 @@ export const getEmailTemplate = ({
   title,
   body,
   otpCode,
+  codeLabel = 'Verification Code',
+  codeExpiry = 'Valid for the next 10 minutes.',
+  codeExpiryLabel = 'Expires in',
   buttonText,
   buttonLink,
 }: IEmailOptions): string => {
   const logoUrl =
-    "https://res.cloudinary.com/da1uxchgo/image/upload/v1781263900/un4seen/i9ti2hs0hnzi8apxz5fj.png";
-  const brandColor = "#BE185D"; // Your brand primary color
+    "https://res.cloudinary.com/da1uxchgo/image/upload/v1784090693/Wee%20Plan/tjuba1bdytwwraopszcq.png";
+  const brandColor = "#E9308F"; // Your brand primary color
 
   return `
 <!DOCTYPE html>
@@ -57,8 +63,6 @@ export const getEmailTemplate = ({
         /* Footer */
         .footer { padding: 30px; text-align: center; font-size: 13px; color: #999999; background-color: #fafafa; }
         .footer p { margin: 5px 0; }
-        .social-links { margin-top: 20px; }
-        .social-links a { color: ${brandColor}; font-weight: bold; margin: 0 10px; }
 
         /* Responsive */
         @media screen and (max-width: 600px) {
@@ -75,7 +79,7 @@ export const getEmailTemplate = ({
                 <!-- Header -->
                 <tr>
                     <td class="header">
-                        <img src="${logoUrl}" alt="WePlan Logo" class="logo">
+                        <img src="${logoUrl}" alt="ActInc Logo" class="logo">
                     </td>
                 </tr>
 
@@ -86,14 +90,14 @@ export const getEmailTemplate = ({
                         <div class="title">${title}</div>
                         <div class="body-text">${body}</div>
 
-                        <!-- Conditionally render OTP -->
+                        <!-- Conditionally render OTP / Code -->
                         ${
                           otpCode
                             ? `
                         <div class="otp-container">
-                            <span class="otp-label">Verification Code</span>
+                            <span class="otp-label">${codeLabel}</span>
                             <div class="otp-code">${otpCode}</div>
-                            <p style="font-size: 13px; color: #888; margin-top: 15px;">Valid for the next 10 minutes.</p>
+                            <p style="font-size: 13px; color: #888; margin-top: 15px;">${codeExpiry}</p>
                         </div>
                         `
                             : ""
@@ -112,7 +116,7 @@ export const getEmailTemplate = ({
 
                         <p style="font-size: 15px; color: #666; margin-top: 30px;">
                             Warm regards,<br>
-                            <strong>Team WePlan</strong>
+                            <strong>Team ActInc</strong>
                         </p>
                     </td>
                 </tr>
@@ -120,11 +124,7 @@ export const getEmailTemplate = ({
                 <!-- Footer -->
                 <tr>
                     <td class="footer">
-                        <p>Crafting Your Perfect Wedding Story.</p>
-                        <p>&copy; ${new Date().getFullYear()} WePlan. All rights reserved.</p>
-                        <div class="social-links">
-                            <a href="#">Facebook</a> | <a href="#">Instagram</a> | <a href="#">Twitter</a>
-                        </div>
+                        <p>&copy; ${new Date().getFullYear()} ActInc. All rights reserved.</p>
                         <p style="margin-top: 15px; font-size: 11px;">You are receiving this email because you registered on our platform. If this wasn't you, please ignore this email.</p>
                     </td>
                 </tr>

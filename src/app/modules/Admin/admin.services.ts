@@ -19,7 +19,9 @@ const sendOtpToAdmin = async (admin: any, plainOtp: string, title: string) => {
       userName: admin.firstName,
       title: title,
       body: `Your verification code is below. Please use it within 10 minutes.`,
-      otpCode: plainOtp
+      otpCode: plainOtp,
+      codeLabel: 'Verification Code',
+      codeExpiry: 'Valid for the next 10 minutes.',
     });
     await sendEmail({
       to: admin.email,

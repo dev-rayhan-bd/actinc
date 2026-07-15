@@ -19,6 +19,7 @@ export interface TCompany {
   logo: string;
   slug: string;
   status: TCompanyStatus;
+  isDeleted: boolean;
   branding: TCompanyBranding;
 }
 

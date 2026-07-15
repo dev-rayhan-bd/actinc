@@ -16,7 +16,12 @@ const updateCompanySchema = z.object({
     email: z.string().email().optional(),
     address: z.string().optional(),
     slug: z.string().min(1).toLowerCase().optional(),
-    status: z.enum(['active', 'inactive', 'suspended']).optional(),
+  }),
+});
+
+const updateCompanyStatusSchema = z.object({
+  body: z.object({
+    status: z.enum(['active', 'inactive', 'suspended'], { required_error: 'Status is required' }),
   }),
 });
 
@@ -35,5 +40,6 @@ const updateBrandingSchema = z.object({
 export const CompanyValidation = {
   createCompanySchema,
   updateCompanySchema,
+  updateCompanyStatusSchema,
   updateBrandingSchema,
 };

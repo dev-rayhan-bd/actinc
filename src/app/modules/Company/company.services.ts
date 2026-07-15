@@ -97,8 +97,10 @@ const createCompanyIntoDB = async (payload: { name: string; email: string; addre
     const html = getEmailTemplate({
       userName: name,
       title: 'Your Company Account is Ready!',
-      body: `Your company account has been created. Use the credentials below to log in.\n\nPlease change your password after first login for security.`,
+      body: `Your company account has been created. Use the temporary password below to log in. Please change your password after first login for security.`,
       otpCode: tempPassword,
+      codeLabel: 'Your Temporary Password',
+      codeExpiry: 'Please change this password after your first login.',
     });
     await sendEmail({
       to: email,
@@ -118,7 +120,7 @@ const createCompanyIntoDB = async (payload: { name: string; email: string; addre
 };
 
 const getAllCompaniesFromDB = async (query: Record<string, unknown>) => {
-  const queryBuilder = new QueryBuilder(Company.find(), query);
+  const queryBuilder = new QueryBuilder(Company.find({ isDeleted: false }), query);
   queryBuilder.search(['name', 'slug']).filter().sort().paginate();
   const result = await queryBuilder.modelQuery;
   const meta = await queryBuilder.countTotal();
@@ -126,7 +128,7 @@ const getAllCompaniesFromDB = async (query: Record<string, unknown>) => {
 };
 
 const getSingleCompanyFromDB = async (id: string) => {
-  const result = await Company.findById(id);
+  const result = await Company.findOne({ _id: id, isDeleted: false });
   if (!result) {
     throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   }
@@ -174,16 +176,46 @@ const updateBrandingInDB = async (id: string, payload: Record<string, any>) => {
   return result;
 };
 
-const softDeleteCompanyFromDB = async (id: string) => {
-  const result = await Company.findByIdAndUpdate(
+const updateCompanyStatusInDB = async (id: string, status: string) => {
+  const company = await Company.findByIdAndUpdate(
     id,
-    { status: 'inactive' },
+    { status },
     { new: true },
   );
-  if (!result) {
+  if (!company) {
     throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   }
-  return result;
+
+  // Sync related User accounts status
+  // Users with companyId matching this company get the same status mapping
+  const userStatus = status === 'active' ? 'active' : 'blocked';
+  const userUpdateResult = await User.updateMany(
+    { companyId: company._id },
+    { status: userStatus },
+  );
+
+  console.log('[updateCompanyStatus] company:', id, '→ status:', status, '| userStatus:', userStatus, '| matched:', userUpdateResult.matchedCount, '| modified:', userUpdateResult.modifiedCount);
+
+  return company;
+};
+
+const deleteCompanyFromDB = async (id: string) => {
+  const company = await Company.findOneAndUpdate(
+    { _id: id, isDeleted: false },
+    { isDeleted: true },
+    { new: true },
+  );
+  if (!company) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
+  }
+
+  // Soft-delete all related User accounts
+  await User.updateMany(
+    { companyId: company._id },
+    { isDeleted: true, status: 'blocked' },
+  );
+
+  return company;
 };
 
 export const CompanyServices = {
@@ -191,6 +223,7 @@ export const CompanyServices = {
   getAllCompaniesFromDB,
   getSingleCompanyFromDB,
   updateCompanyInDB,
+  updateCompanyStatusInDB,
   updateBrandingInDB,
-  softDeleteCompanyFromDB,
+  deleteCompanyFromDB,
 };

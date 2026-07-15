@@ -20,7 +20,7 @@ const sendEmail = async (options: IMailOptions): Promise<boolean> => {
     });
 
     const mailOptions = {
-      from: `"Wee Plan" <${config.SMTP_USER}>`,
+      from: `"Act-Inc" <${config.SMTP_USER}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
