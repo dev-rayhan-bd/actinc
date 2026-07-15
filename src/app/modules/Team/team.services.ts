@@ -74,9 +74,40 @@ const deleteTeamFromDB = async (
   return result;
 };
 
+const getDropdownTeamsFromDB = async (
+  userRole: string,
+  companyId?: string,
+) => {
+  const filter: Record<string, unknown> = {};
+  if (userRole === 'company' && companyId) {
+    filter.companyId = companyId;
+  }
+  return Team.find(filter).select('_id name').lean();
+};
+
+// ── Company-scoped: all teams for a specific company (paginated) ──
+const getAllTeamsByCompanyFromDB = async (companyId: string, query: Record<string, unknown>) => {
+  const queryBuilder = new QueryBuilder(
+    Team.find({ companyId }),
+    query,
+  );
+  queryBuilder.search(['name']).filter().sort().paginate();
+  const result = await queryBuilder.modelQuery;
+  const meta = await queryBuilder.countTotal();
+  return { meta, result };
+};
+
+// ── Company-scoped: team dropdown for a specific company ──
+const getDropdownTeamsByCompanyFromDB = async (companyId: string) => {
+  return Team.find({ companyId }).select('_id name').lean();
+};
+
 export const TeamServices = {
   createTeamIntoDB,
   getAllTeamsFromDB,
+  getDropdownTeamsFromDB,
+  getAllTeamsByCompanyFromDB,
+  getDropdownTeamsByCompanyFromDB,
   updateTeamInDB,
   deleteTeamFromDB,
 };

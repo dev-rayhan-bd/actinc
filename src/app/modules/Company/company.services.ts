@@ -199,6 +199,10 @@ const updateCompanyStatusInDB = async (id: string, status: string) => {
   return company;
 };
 
+const getDropdownCompaniesFromDB = async () => {
+  return Company.find({ isDeleted: false }).select('_id name').lean();
+};
+
 const deleteCompanyFromDB = async (id: string) => {
   const company = await Company.findOneAndUpdate(
     { _id: id, isDeleted: false },
@@ -226,4 +230,5 @@ export const CompanyServices = {
   updateCompanyStatusInDB,
   updateBrandingInDB,
   deleteCompanyFromDB,
+  getDropdownCompaniesFromDB,
 };

@@ -11,26 +11,32 @@ const router = express.Router();
 // ── superAdmin only: CRUD ──
 router.post(
   '/create-company',
-  auth(USER_ROLE.superAdmin),
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin),
   validateRequest(CompanyValidation.createCompanySchema),
   CompanyControllers.createCompany,
 );
 
 router.get(
   '/',
-  auth(USER_ROLE.superAdmin, USER_ROLE.company),
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),
   CompanyControllers.getAllCompanies,
 );
 
 router.get(
+  '/dropdown',
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),
+  CompanyControllers.getDropdownCompanies,
+);
+
+router.get(
   '/:id',
-  auth(USER_ROLE.superAdmin, USER_ROLE.company),
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),
   CompanyControllers.getSingleCompany,
 );
 
 router.patch(
   '/:id',
-  auth(USER_ROLE.superAdmin),
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin),
   validateRequest(CompanyValidation.updateCompanySchema),
   CompanyControllers.updateCompany,
 );
@@ -38,7 +44,7 @@ router.patch(
 // ── Branding: superAdmin (any company) or company (own company) ──
 router.patch(
   '/:id/branding',
-  auth(USER_ROLE.superAdmin, USER_ROLE.company),
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),
   upload.fields([                                     
     { name: 'logo', maxCount: 1 },
     { name: 'video', maxCount: 1 },
@@ -49,14 +55,14 @@ router.patch(
 
 router.patch(
   '/:id/status',
-  auth(USER_ROLE.superAdmin),
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin),
   validateRequest(CompanyValidation.updateCompanyStatusSchema),
   CompanyControllers.updateCompanyStatus,
 );
 
 router.delete(
   '/:id',
-  auth(USER_ROLE.superAdmin),
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin),
   CompanyControllers.deleteCompany,
 );
 

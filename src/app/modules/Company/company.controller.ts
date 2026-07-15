@@ -87,6 +87,16 @@ const updateCompanyStatus = catchAsync(async (req, res) => {
   });
 });
 
+const getDropdownCompanies = catchAsync(async (_req, res) => {
+  const result = await CompanyServices.getDropdownCompaniesFromDB();
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Company dropdown data retrieved successfully',
+    data: result,
+  });
+});
+
 const deleteCompany = catchAsync(async (req, res) => {
   const result = await CompanyServices.deleteCompanyFromDB(req.params.id as string);
   sendResponse(res, {
@@ -105,4 +115,5 @@ export const CompanyControllers = {
   updateCompanyStatus,
   updateBranding,
   deleteCompany,
+  getDropdownCompanies,
 };

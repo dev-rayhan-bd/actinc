@@ -46,9 +46,48 @@ const deleteTeam = catchAsync(async (req, res) => {
   });
 });
 
+const getDropdownTeams = catchAsync(async (req, res) => {
+  const { role, companyId } = req.user;
+  const result = await TeamServices.getDropdownTeamsFromDB(role, companyId);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Team dropdown data retrieved successfully',
+    data: result,
+  });
+});
+
+const getAllTeamsByCompany = catchAsync(async (req, res) => {
+  const result = await TeamServices.getAllTeamsByCompanyFromDB(
+    req.params.companyId as string,
+    req.query,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Teams retrieved successfully',
+    data: result,
+  });
+});
+
+const getDropdownTeamsByCompany = catchAsync(async (req, res) => {
+  const result = await TeamServices.getDropdownTeamsByCompanyFromDB(
+    req.params.companyId as string,
+  );
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Team dropdown data retrieved successfully',
+    data: result,
+  });
+});
+
 export const TeamControllers = {
   createTeam,
   getAllTeams,
+  getDropdownTeams,
+  getAllTeamsByCompany,
+  getDropdownTeamsByCompany,
   updateTeam,
   deleteTeam,
 };
