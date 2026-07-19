@@ -10,7 +10,7 @@ const userSchema = new Schema<TUser, UserModel, IUserMethods>(
     fullName: { type: String },
     image: { type: String, default: "" },
     email: { type: String, sparse: true, unique: true },
-    phone: { type: String, sparse: true, unique: true },
+    phone: { type: String, sparse: true},
     password: { type: String, select: 0 },
     authType: {
       type: String,

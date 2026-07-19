@@ -10,6 +10,7 @@ import { NotificationRoutes } from '../modules/Notification/notification.routes'
 import { AdminRoutes } from '../modules/Admin/admin.routes';
 import { CompanyRoutes } from '../modules/Company/company.routes';
 import { TeamRoutes } from '../modules/Team/team.routes';
+import { ModuleRoutes } from '../modules/Module/module.routes';
 
 
 const router = Router();
@@ -48,7 +49,7 @@ const moduleRoutes = [
   { path: '/admin', route: AdminRoutes },
   { path: '/company', route: CompanyRoutes },
   { path: '/team', route: TeamRoutes },
-
+  { path: '/module', route: ModuleRoutes },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
