@@ -47,8 +47,29 @@ const getMeFromDB = async (userId: string, role: string) => {
   return result;
 };
 
+const getUsersByCompany = async (companyId: string, query: Record<string, unknown>) => {
+  const filterQuery: Record<string, unknown> = {
+    companyId,
+    isDeleted: false,
+  };
+
+  const mergedQuery = { ...query, ...filterQuery };
+
+  const userQuery = new QueryBuilder(User.find({ companyId, isDeleted: false }), mergedQuery)
+    .search(['firstName', 'lastName', 'email', 'phone', 'employeeId'])
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const result = await userQuery.modelQuery;
+  const meta = await userQuery.countTotal();
+  return { meta, result };
+};
+
 export const UserServices = {
   getAllUsersFromDB,
   updateProfileInDB,
   getMeFromDB,
+  getUsersByCompany,
 };

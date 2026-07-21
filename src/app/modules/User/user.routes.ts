@@ -8,6 +8,13 @@ const router = express.Router();
 // ── Admin / SuperAdmin Routes ──
 router.get('/', auth('admin', 'superAdmin'), UserControllers.getAllUsers);
 
+// ── Company: see own employees/users ──
+router.get(
+  '/company-users',
+  auth('company'),
+  UserControllers.getUsersByCompany,
+);
+
 // ── Authenticated User Routes ──
 router.get(
   '/me',
