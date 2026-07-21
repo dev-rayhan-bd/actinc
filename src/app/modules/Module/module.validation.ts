@@ -9,8 +9,8 @@ const mcqQuestionSchema = z.object({
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
-  options: z.array(z.string()).min(2, 'MCQ must have at least 2 options'),
-  correctAnswer: z.string().min(1, 'correctAnswer is required'),
+  options: z.array(z.string()).min(4, 'MCQ must have at least 4 options').optional(),
+  correctAnswer: z.string().optional(),
 });
 
 const swipeQuestionSchema = z.object({
@@ -98,6 +98,7 @@ const createModuleSchema = z.object({
     title: z.string().min(1, 'Module title is required'),
     description: z.string().min(1, 'Module description is required'),
     status: z.enum(['draft', 'published']).optional().default('draft'),
+    companyId: z.string().optional(),
     questions: z
       .array(questionSchema)
       .optional()
@@ -111,6 +112,7 @@ const updateModuleSchema = z.object({
     title: z.string().min(1).optional(),
     description: z.string().min(1).optional(),
     status: z.enum(['draft', 'published']).optional(),
+    companyId: z.string().optional(),
     questions: z.array(questionSchema).optional(),
   }),
 });
@@ -122,8 +124,28 @@ const duplicateModuleSchema = z.object({
   }),
 });
 
+// ── Assign Modules to Company ──
+const assignModuleSchema = z.object({
+  body: z.object({
+    moduleId: z.string().optional(),
+    moduleIds: z.array(z.string()).optional(),
+    companyId: z.string().min(1, 'companyId is required'),
+  }).refine((data) => data.moduleId || (data.moduleIds && data.moduleIds.length > 0), {
+    message: 'Either moduleId or moduleIds is required',
+  }),
+});
+
+// ── Get Modules by Company ──
+const getModulesByCompanySchema = z.object({
+  params: z.object({
+    companyId: z.string().min(1, 'companyId is required'),
+  }),
+});
+
 export const ModuleValidation = {
   createModuleSchema,
   updateModuleSchema,
   duplicateModuleSchema,
+  assignModuleSchema,
+  getModulesByCompanySchema,
 };

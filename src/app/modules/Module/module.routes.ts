@@ -53,4 +53,26 @@ router.delete(
   ModuleControllers.deleteModule,
 );
 
+// ── Assign Modules to Company (single or bulk) ──
+router.post(
+  '/assign',
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  validateRequest(ModuleValidation.assignModuleSchema),
+  ModuleControllers.assignModulesToCompany,
+);
+
+// ── Unassign Module from Company ──
+router.post(
+  '/unassign/:id',
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  ModuleControllers.unassignModuleFromCompany,
+);
+
+// ── Get Modules by Company ──
+router.get(
+  '/company/:companyId',
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  ModuleControllers.getModulesByCompany,
+);
+
 export const ModuleRoutes = router;

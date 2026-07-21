@@ -101,6 +101,42 @@ const duplicateModule = catchAsync(async (req, res) => {
   });
 });
 
+// ── Assign Modules to Company ──
+const assignModulesToCompany = catchAsync(async (req, res) => {
+  const result = await ModuleServices.assignModulesToCompany(req.body);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Modules assigned to company successfully',
+    data: result,
+  });
+});
+
+// ── Unassign Module from Company ──
+const unassignModuleFromCompany = catchAsync(async (req, res) => {
+  const result = await ModuleServices.unassignModuleFromCompany(req.params.id);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Module unassigned from company successfully',
+    data: result,
+  });
+});
+
+// ── Get Modules by Company ──
+const getModulesByCompany = catchAsync(async (req, res) => {
+  const result = await ModuleServices.getModulesByCompany(req.params.companyId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Company modules retrieved successfully',
+    data: result,
+  });
+});
+
 export const ModuleControllers = {
   createModule,
   getAllModules,
@@ -108,4 +144,7 @@ export const ModuleControllers = {
   updateModule,
   deleteModule,
   duplicateModule,
+  assignModulesToCompany,
+  unassignModuleFromCompany,
+  getModulesByCompany,
 };

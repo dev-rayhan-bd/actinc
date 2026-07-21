@@ -69,6 +69,10 @@ const moduleSchema = new Schema<IModule, TModuleModel>(
       ref: 'Admin',
       required: true,
     },
+    companyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Company',
+    },
     isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true },

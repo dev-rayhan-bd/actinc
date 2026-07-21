@@ -102,6 +102,70 @@ const duplicateModuleInDB = async (id: string, newTitle: string, userId: string)
   return result;
 };
 
+// ── Assign Modules to Company (single or bulk) ──
+const assignModulesToCompany = async (payload: { moduleId?: string; moduleIds?: string[]; companyId: string }) => {
+  const { moduleId, moduleIds, companyId } = payload;
+
+  // Single module assignment
+  if (moduleId) {
+    const module = await Module.findOne({ _id: moduleId, isDeleted: false });
+    if (!module) {
+      throw new AppError(httpStatus.NOT_FOUND, 'Module not found');
+    }
+
+    const result = await Module.findByIdAndUpdate(
+      moduleId,
+      { companyId },
+      { new: true, runValidators: true },
+    ).populate('createdBy', 'firstName lastName email');
+
+    return { updatedCount: 1, modules: [result] };
+  }
+
+  // Bulk module assignment
+  if (moduleIds && moduleIds.length > 0) {
+    const result = await Module.updateMany(
+      { _id: { $in: moduleIds }, isDeleted: false },
+      { companyId },
+      { runValidators: true },
+    );
+
+    const updatedModules = await Module.find({
+      _id: { $in: moduleIds },
+      isDeleted: false,
+    }).populate('createdBy', 'firstName lastName email');
+
+    return { updatedCount: result.modifiedCount, modules: updatedModules };
+  }
+
+  throw new AppError(httpStatus.BAD_REQUEST, 'Either moduleId or moduleIds is required');
+};
+
+// ── Unassign Module from Company ──
+const unassignModuleFromCompany = async (moduleId: string) => {
+  const module = await Module.findOne({ _id: moduleId, isDeleted: false });
+  if (!module) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Module not found');
+  }
+
+  const result = await Module.findByIdAndUpdate(
+    moduleId,
+    { companyId: null },
+    { new: true, runValidators: true },
+  ).populate('createdBy', 'firstName lastName email');
+
+  return result;
+};
+
+// ── Get Modules by Company ──
+const getModulesByCompany = async (companyId: string) => {
+  const modules = await Module.find({ companyId, isDeleted: false })
+    .populate('createdBy', 'firstName lastName email')
+    .sort({ createdAt: -1 });
+
+  return modules;
+};
+
 export const ModuleServices = {
   createModuleInDB,
   getAllModulesFromDB,
@@ -109,4 +173,7 @@ export const ModuleServices = {
   updateModuleInDB,
   deleteModuleFromDB,
   duplicateModuleInDB,
+  assignModulesToCompany,
+  unassignModuleFromCompany,
+  getModulesByCompany,
 };
