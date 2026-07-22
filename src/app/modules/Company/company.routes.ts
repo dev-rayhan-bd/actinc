@@ -66,4 +66,11 @@ router.delete(
   CompanyControllers.deleteCompany,
 );
 
+// ── Company Details Dashboard API ──
+router.get(
+  '/:id/details',
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),
+  CompanyControllers.getCompanyDetails,
+);
+
 export const CompanyRoutes = router;

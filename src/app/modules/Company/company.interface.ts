@@ -1,4 +1,4 @@
-import { Model, Types } from 'mongoose';
+import { Model, Types, Document } from 'mongoose';
 
 export type TCompanyStatus = 'active' | 'inactive' | 'suspended';
 
@@ -12,7 +12,7 @@ export interface TCompanyBranding {
   videoUrl: string;
 }
 
-export interface TCompany {
+export interface TCompany extends Document {
   name: string;
   email: string;
   address: string;
@@ -21,6 +21,8 @@ export interface TCompany {
   status: TCompanyStatus;
   isDeleted: boolean;
   branding: TCompanyBranding;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface CompanyModel extends Model<TCompany> {

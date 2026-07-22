@@ -4,6 +4,10 @@ import AppError from '../../errors/AppError';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Company } from './company.model';
 import { User } from '../User/user.model';
+import { Module } from '../Module/module.model';
+import { Team } from '../Team/team.model';
+import { UserProgress } from '../UserProgress/userProgress.model';
+import { BehavioralAssessment } from '../BehavioralAssessment/behavioralAssessment.model';
 import { TCompany } from './company.interface';
 import { getEmailTemplate } from '../../utils/emailTemplate';
 import sendEmail from '../../utils/sendEmail';
@@ -222,6 +226,167 @@ const deleteCompanyFromDB = async (id: string) => {
   return company;
 };
 
+// ── Company Details API (Dashboard Data) ──
+interface CompanyDetailsData {
+  company: {
+    name: string;
+    industry: string;
+    employeeCount: number;
+    memberSince: Date;
+  };
+  stats: {
+    activeParticipants: number;
+    completionRate: number;
+    organizationGrade: number;
+  };
+  behavioralChange: {
+    baseline: Record<string, number>;
+    followUp: Record<string, number>;
+    metrics: string[];
+  };
+  teamPerformance: {
+    teamId: string;
+    teamName: string;
+    activeCount: number;
+    progressPercentage: number;
+    averageScore: number;
+  }[];
+  moduleCompliance: {
+    moduleId: string;
+    moduleName: string;
+    completionPercentage: number;
+    completedCount: number;
+    totalAssigned: number;
+  }[];
+}
+
+const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetailsData> => {
+  // 1. Get company basic info
+  const company = await Company.findOne({ _id: companyId, isDeleted: false });
+  if (!company) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
+  }
+
+  // 2. Get all active users for this company
+  const users = await User.find({ companyId, isDeleted: false, status: 'active' })
+    .select('_id teamId')
+    .lean();
+  const userIds = users.map((u) => u._id);
+  const activeParticipants = userIds.length;
+
+  // 3. Get teams for this company
+  const teams = await Team.find({ companyId }).select('_id name').lean();
+  const teamMap = new Map(teams.map((t) => [t._id.toString(), t.name]));
+
+  // 4. Get all modules assigned to this company
+  const modules = await Module.find({ companyId, isDeleted: false, status: 'published' })
+    .select('_id title')
+    .lean();
+  const moduleIds = modules.map((m) => m._id);
+
+  // 5. Get UserProgress for all users in this company
+  const userProgress = await UserProgress.find({ companyId, moduleId: { $in: moduleIds } })
+    .select('userId moduleId status progressPercentage score completedQuestions totalQuestions')
+    .lean();
+
+  // 6. Calculate completion rate
+  const totalAssignments = userIds.length * moduleIds.length;
+  const completedAssignments = userProgress.filter((p) => p.status === 'completed').length;
+  const completionRate = totalAssignments > 0 ? Math.round((completedAssignments / totalAssignments) * 100) : 0;
+
+  // 7. Calculate organization grade (average of all scores)
+  const scoredProgress = userProgress.filter((p) => p.score !== undefined && p.score !== null);
+  const avgScore = scoredProgress.length > 0
+    ? scoredProgress.reduce((sum, p) => sum + (p.score || 0), 0) / scoredProgress.length
+    : 0;
+  const organizationGrade = Math.round(avgScore * 10) / 10; // 0-10 scale
+
+  // 8. Get behavioral assessments
+  const [baselineMetrics, followUpMetrics, baselineOverall, followUpOverall] = await Promise.all([
+    BehavioralAssessment.getCompanyMetricAverages(companyId, 'baseline'),
+    BehavioralAssessment.getCompanyMetricAverages(companyId, 'follow_up'),
+    BehavioralAssessment.getCompanyOverallAverage(companyId, 'baseline'),
+    BehavioralAssessment.getCompanyOverallAverage(companyId, 'follow_up'),
+  ]);
+
+  // Standard metrics order for consistent display
+  const standardMetrics = [
+    'Social Safety',
+    'Workplace Respect',
+    'Inclusion & Equity',
+    'Well-being',
+    'Team Collaboration',
+    'Conflict Resolution',
+    'Leadership Skills',
+  ];
+
+  const behavioralChange = {
+    baseline: standardMetrics.reduce((acc, m) => ({ ...acc, [m]: baselineMetrics[m] || 0 }), {}),
+    followUp: standardMetrics.reduce((acc, m) => ({ ...acc, [m]: followUpMetrics[m] || 0 }), {}),
+    metrics: standardMetrics,
+  };
+
+  // 9. Team performance
+  const teamPerformance = await Promise.all(
+    teams.map(async (team) => {
+      const teamUserIds = users.filter((u) => u.teamId?.toString() === team._id.toString()).map((u) => u._id);
+      const teamProgress = userProgress.filter((p) => teamUserIds.some((id) => id.equals(p.userId)));
+
+      const teamCompleted = teamProgress.filter((p) => p.status === 'completed').length;
+      const teamTotal = teamUserIds.length * moduleIds.length;
+      const teamProgressPct = teamTotal > 0 ? Math.round((teamCompleted / teamTotal) * 100) : 0;
+
+      const teamScored = teamProgress.filter((p) => p.score !== undefined && p.score !== null);
+      const teamAvgScore = teamScored.length > 0
+        ? teamScored.reduce((sum, p) => sum + (p.score || 0), 0) / teamScored.length
+        : 0;
+
+      return {
+        teamId: team._id.toString(),
+        teamName: team.name,
+        activeCount: teamUserIds.length,
+        progressPercentage: teamProgressPct,
+        averageScore: Math.round(teamAvgScore * 10) / 10,
+      };
+    })
+  );
+
+  // 10. Module compliance
+  const moduleCompliance = await Promise.all(
+    modules.map(async (module) => {
+      const moduleProgress = userProgress.filter((p) => p.moduleId.equals(module._id));
+      const completed = moduleProgress.filter((p) => p.status === 'completed').length;
+      const total = userIds.length;
+      const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      return {
+        moduleId: module._id.toString(),
+        moduleName: module.title,
+        completionPercentage: completionPct,
+        completedCount: completed,
+        totalAssigned: total,
+      };
+    })
+  );
+
+  return {
+    company: {
+      name: company.name,
+      industry: company.address || 'Not specified', // Using address as industry placeholder
+      employeeCount: activeParticipants,
+      memberSince: company.createdAt as Date,
+    },
+    stats: {
+      activeParticipants,
+      completionRate,
+      organizationGrade,
+    },
+    behavioralChange,
+    teamPerformance,
+    moduleCompliance,
+  };
+};
+
 export const CompanyServices = {
   createCompanyIntoDB,
   getAllCompaniesFromDB,
@@ -231,4 +396,5 @@ export const CompanyServices = {
   updateBrandingInDB,
   deleteCompanyFromDB,
   getDropdownCompaniesFromDB,
+  getCompanyDetailsFromDB,
 };

@@ -107,6 +107,16 @@ const deleteCompany = catchAsync(async (req, res) => {
   });
 });
 
+const getCompanyDetails = catchAsync(async (req, res) => {
+  const result = await CompanyServices.getCompanyDetailsFromDB(req.params.id as string);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Company details retrieved successfully',
+    data: result,
+  });
+});
+
 export const CompanyControllers = {
   createCompany,
   getAllCompanies,
@@ -116,4 +126,5 @@ export const CompanyControllers = {
   updateBranding,
   deleteCompany,
   getDropdownCompanies,
+  getCompanyDetails,
 };

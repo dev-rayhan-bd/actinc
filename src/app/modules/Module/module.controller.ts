@@ -115,7 +115,7 @@ const assignModulesToCompany = catchAsync(async (req, res) => {
 
 // ── Unassign Module from Company ──
 const unassignModuleFromCompany = catchAsync(async (req, res) => {
-  const result = await ModuleServices.unassignModuleFromCompany(req.params.id);
+  const result = await ModuleServices.unassignModuleFromCompany(req.params.id as string);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -127,7 +127,7 @@ const unassignModuleFromCompany = catchAsync(async (req, res) => {
 
 // ── Get Modules by Company ──
 const getModulesByCompany = catchAsync(async (req, res) => {
-  const result = await ModuleServices.getModulesByCompany(req.params.companyId);
+  const result = await ModuleServices.getModulesByCompany(req.params.companyId as string);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
