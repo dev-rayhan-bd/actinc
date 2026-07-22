@@ -43,14 +43,10 @@ export const AuthValidation = {
     }),
   }),
 
-  // ── Flow 6: QR Code Login/Registration ──
+  // ── Flow 6: QR Code Login/Registration (Fully Automatic) ──
   qrCodeLoginSchema: z.object({
     body: z.object({
       qrToken: z.string({ required_error: 'QR token is required' }),
-      firstName: z.string().optional(),
-      lastName: z.string().optional(),
-      email: z.string().email().optional(),
-      phone: z.string().optional(),
     }),
   }),
 
@@ -79,6 +75,14 @@ export const AuthValidation = {
       phone: z.string(),
       otp: z.string().length(6),
       newPassword: z.string().min(8),
+    }),
+  }),
+
+  // ── QR Code Generation ──
+  generateQRSchema: z.object({
+    body: z.object({
+      companyId: z.string({ required_error: 'Company ID is required' }),
+      teamId: z.string({ required_error: 'Team ID is required' }),
     }),
   }),
 

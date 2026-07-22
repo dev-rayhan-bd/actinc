@@ -71,6 +71,17 @@ const refreshToken = catchAsync(async (req, res) => {
   sendResponse(res, { statusCode: 200, success: true, message: 'Token Refreshed', data: result });
 });
 
+const generateQRCode = catchAsync(async (req, res) => {
+  const { companyId, teamId } = req.body;
+  const result = await AuthServices.generateQRCode(companyId, teamId, req.user.role);
+  sendResponse(res, {
+    statusCode: 200,
+    success: true,
+    message: 'QR code generated successfully',
+    data: result,
+  });
+});
+
 const logout = catchAsync(async (req, res) => {
   res.clearCookie('refreshToken');
   sendResponse(res, { statusCode: 200, success: true, message: 'Logged out', data: null });
@@ -82,6 +93,7 @@ export const AuthControllers = {
   employeeIdLogin,
   guestLogin,
   qrCodeLogin,
+  generateQRCode,
   VerifyOtpForRegistration,
   resendOtp,
   forgotPassword,

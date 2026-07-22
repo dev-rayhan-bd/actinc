@@ -9,6 +9,7 @@ import { createToken, verifyToken } from './auth.utils';
 import config from '../../config';
 import { getEmailTemplate } from '../../utils/emailTemplate';
 import sendEmail from '../../utils/sendEmail';
+import QRCode from 'qrcode';
 import { TResetPassword, TEmployeeIdLogin, TGuestLogin } from './auth.interface';
 import { TUser } from '../User/user.interface';
 import { USER_ROLE, AUTH_TYPE } from './auth.constant';
@@ -194,10 +195,15 @@ const employeeIdLogin = async (payload: TEmployeeIdLogin) => {
 
   if (!user) {
     // Just-in-time registration: create new user
+    // Email lagbe na — unique placeholder email: firstname@companyname.com
+    const companySlug = company.name.toLowerCase().replace(/\s+/g, '');
+    const placeholderEmail = `${firstName.toLowerCase()}@${companySlug}.com`;
+
     user = await User.create({
       firstName,
       lastName,
       fullName: `${firstName} ${lastName}`,
+      email: placeholderEmail,
       employeeId,
       role: 'user',
       authType: 'employeeId',
@@ -262,8 +268,8 @@ const guestLogin = async (payload: TGuestLogin) => {
 //  Scans QR code containing encrypted token with companyId, teamId, and optional user data
 //  If user exists → login; if not → register new user
 // ─────────────────────────────────────────────
-const qrCodeLogin = async (payload: { qrToken: string; firstName?: string; lastName?: string; email?: string; phone?: string }) => {
-  const { qrToken, firstName, lastName, email, phone } = payload;
+const qrCodeLogin = async (payload: { qrToken: string }) => {
+  const { qrToken } = payload;
 
   // Decode and verify QR token
   let decoded: any;
@@ -274,7 +280,7 @@ const qrCodeLogin = async (payload: { qrToken: string; firstName?: string; lastN
   }
 
   const { companyId, teamId, type } = decoded;
-  
+
   if (type !== 'qr_login') {
     throw new AppError(httpStatus.BAD_REQUEST, 'Invalid QR code type');
   }
@@ -289,54 +295,27 @@ const qrCodeLogin = async (payload: { qrToken: string; firstName?: string; lastN
   if (!team) throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
   if (team.companyId.toString() !== companyId) throw new AppError(httpStatus.BAD_REQUEST, 'Team does not belong to this company');
 
-  // Check if user already exists (by email or phone if provided)
-  let user = null;
-  if (email) {
-    user = await User.findOne({ email, companyId: new Types.ObjectId(companyId) });
-  } else if (phone) {
-    user = await User.findOne({ phone, companyId: new Types.ObjectId(companyId) });
-  }
+  // ── Auto Register new user (zero input from user) ──
+  const guestId = `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const autoName = `User_${guestId.slice(-6)}`;
 
-  if (user) {
-    // Existing user - login
-    user.lastActiveAt = new Date();
-    await user.save();
-
-    const jwtPayload = { userId: user._id.toString(), role: user.role, companyId, teamId, authType: 'email' };
-    return {
-      accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in!),
-      refreshToken: createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in!),
-      user,
-      isNewUser: false,
-    };
-  }
-
-  // New user - register
-  if (!firstName || !lastName) {
-    throw new AppError(httpStatus.BAD_REQUEST, 'First name and last name required for new user registration');
-  }
-
-  const authType: 'email' | 'employeeId' | 'anonymous' = email ? 'email' : 'employeeId';
-  const identifier = email || phone;
-
-  user = await User.create({
-    firstName,
-    lastName,
-    fullName: `${firstName} ${lastName}`,
-    email,
-    phone,
+  const user = await User.create({
+    firstName: autoName,
+    lastName: guestId.slice(-6),
+    fullName: autoName,
+    guestId,
     role: 'user',
-    authType,
+    authType: 'qr',
     companyId: new Types.ObjectId(companyId),
     teamId: new Types.ObjectId(teamId),
     status: 'active',
-    isOtpVerified: true, // QR code acts as verification
+    isOtpVerified: true,
     lastActiveAt: new Date(),
   });
 
-  console.log(`✅ New user registered via QR code: ${identifier} in company ${companyId}`);
+  console.log(`✅ Auto-registered via QR code: ${autoName} in company ${company.name}`);
 
-  const jwtPayload = { userId: user._id.toString(), role: user.role, companyId, teamId, authType };
+  const jwtPayload = { userId: user._id.toString(), role: 'user', companyId, teamId, authType: 'qr' as const };
   return {
     accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in!),
     refreshToken: createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in!),
@@ -477,6 +456,54 @@ const refreshToken = async (token: string) => {
 
 
 
+// ─────────────────────────────────────────────
+//  QR CODE GENERATION
+//  Company/Admin/SuperAdmin generates QR code for guest login
+// ─────────────────────────────────────────────
+const generateQRCode = async (companyId: string, teamId: string, role: string) => {
+  // Validate company exists and is active
+  const company = await Company.findById(companyId);
+  if (!company) throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
+  if (company.status !== 'active') throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
+
+  // Validate team belongs to company
+  const team = await Team.findById(teamId);
+  if (!team) throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
+  if (team.companyId.toString() !== companyId) throw new AppError(httpStatus.BAD_REQUEST, 'Team does not belong to this company');
+
+  // Generate JWT token for QR code (valid for 5 minutes)
+  const qrToken = createToken(
+    { companyId, teamId, type: 'qr_login' },
+    config.jwt_access_secret!,
+    '5m'
+  );
+
+  // ── QR code contains FULL URL with companyId + teamId ──
+  const frontendUrl = config.frontend_url || 'http://localhost:3000';
+  const qrUrl = `${frontendUrl}/qr-login?token=${qrToken}&companyId=${companyId}&teamId=${teamId}`;
+
+  // Generate QR code as data URL (base64 PNG)
+  const qrDataUrl = await QRCode.toDataURL(qrUrl, {
+    width: 300,
+    margin: 2,
+    color: {
+      dark: '#000000',
+      light: '#FFFFFF',
+    },
+  });
+
+  console.log(`✅ QR code generated for company: ${company.name}, team: ${team.name}`);
+
+  return {
+    qrToken,
+    qrUrl, // Full URL: frontend.com/qr-login?token=xxx&companyId=xxx&teamId=xxx
+    qrImage: qrDataUrl, // base64 data URL — frontend e <img src={qrImage}> set korte parbe
+    expiresIn: '5 minutes',
+    company: { _id: company._id, name: company.name },
+    team: { _id: team._id, name: team.name },
+  };
+};
+
 export const AuthServices = {
   registerUser,
   verifyOTPForRegistration,
@@ -484,6 +511,7 @@ export const AuthServices = {
   employeeIdLogin,
   guestLogin,
   qrCodeLogin,
+  generateQRCode,
   resendOTP,
   forgotPass,
   resetPassword,

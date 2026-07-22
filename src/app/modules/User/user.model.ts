@@ -14,7 +14,7 @@ const userSchema = new Schema<TUser, UserModel, IUserMethods>(
     password: { type: String, select: 0 },
     authType: {
       type: String,
-      enum: ["email", "employeeId", "anonymous"],
+      enum: ["email", "employeeId", "anonymous", "qr"],
       default: "email",
     },
     role: {
@@ -35,6 +35,7 @@ const userSchema = new Schema<TUser, UserModel, IUserMethods>(
     otp: { type: String, select: 0 },
     otpExpires: { type: Date, select: 0 },
     acceptedTerms: { type: Boolean },
+    guestId: { type: String, sparse: true, unique: true }, // QR login: auto-generated, frontend localStorage e store hoy
     fcmToken: { type: String, default: null },
     passwordChangedAt: { type: Date },
     lastActiveAt: { type: Date },

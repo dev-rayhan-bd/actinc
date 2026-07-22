@@ -26,6 +26,13 @@ router.post('/employee-id-login',
   AuthControllers.employeeIdLogin,
 );
 
+// ── QR Code Generation (Company/Admin/SuperAdmin) ──
+router.post('/generate-qr',
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),
+  validateRequest(AuthValidation.generateQRSchema),
+  AuthControllers.generateQRCode,
+);
+
 // ── Flow 5: Guest Login (Anonymous via Passcode) ──
 router.post('/guest-login',
   validateRequest(AuthValidation.guestLoginSchema),

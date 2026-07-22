@@ -2,7 +2,7 @@ import { Model, Types } from 'mongoose';
 
 export type TUserRole = 'user' | 'admin' | 'superAdmin' | 'company';
 
-export type TAuthType = 'email' | 'employeeId' | 'anonymous';
+export type TAuthType = 'email' | 'employeeId' | 'anonymous' | 'qr';
 
 export interface TUser {
   firstName: string;
@@ -23,6 +23,7 @@ export interface TUser {
   otp?: string | null;
   otpExpires?: Date | null;
   acceptedTerms?: boolean;
+  guestId?: string; // QR login: auto-generated, stored in frontend localStorage
   fcmToken?: string | null;
   passwordChangedAt?: Date;
   lastActiveAt?: Date;

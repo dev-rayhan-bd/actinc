@@ -51,8 +51,9 @@ export type TRegisterUser = {
 
 export type TJwtPayload = {
   userId?: string;
-  role: string;
+  role?: string;
   companyId?: string;
   teamId?: string;
   authType?: string;
+  type?: string;
 };
