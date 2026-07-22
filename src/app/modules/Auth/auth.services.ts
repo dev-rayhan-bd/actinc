@@ -298,11 +298,13 @@ const qrCodeLogin = async (payload: { qrToken: string }) => {
   // ── Auto Register new user (zero input from user) ──
   const guestId = `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const autoName = `User_${guestId.slice(-6)}`;
+  const autoEmail = `${guestId}@qr.local`; // Unique email to avoid duplicate key on email index
 
   const user = await User.create({
     firstName: autoName,
     lastName: guestId.slice(-6),
     fullName: autoName,
+    email: autoEmail,
     guestId,
     role: 'user',
     authType: 'qr',

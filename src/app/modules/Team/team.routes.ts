@@ -49,7 +49,7 @@ router.get(
 
 router.get(
   '/company/:companyId/dropdown',
-  auth(USER_ROLE.superAdmin, USER_ROLE.admin),
+  // auth(USER_ROLE.superAdmin, USER_ROLE.admin),
   TeamControllers.getDropdownTeamsByCompany,
 );
 

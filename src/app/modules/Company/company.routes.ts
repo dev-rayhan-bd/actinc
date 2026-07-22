@@ -24,7 +24,7 @@ router.get(
 
 router.get(
   '/dropdown',
-  auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),
+  // auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),
   CompanyControllers.getDropdownCompanies,
 );
 

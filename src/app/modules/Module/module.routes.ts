@@ -53,22 +53,29 @@ router.delete(
   ModuleControllers.deleteModule,
 );
 
-// ── Assign Modules to Company (single or bulk) ──
+// ── Assign Modules to Team (single or bulk) ──
 router.post(
   '/assign',
   auth(USER_ROLE.admin, USER_ROLE.superAdmin),
   validateRequest(ModuleValidation.assignModuleSchema),
-  ModuleControllers.assignModulesToCompany,
+  ModuleControllers.assignModulesToTeam,
 );
 
-// ── Unassign Module from Company ──
+// ── Unassign Module from Team ──
 router.post(
   '/unassign/:id',
   auth(USER_ROLE.admin, USER_ROLE.superAdmin),
-  ModuleControllers.unassignModuleFromCompany,
+  ModuleControllers.unassignModuleFromTeam,
 );
 
-// ── Get Modules by Company ──
+// ── Get Modules by Team ──
+router.get(
+  '/team/:teamId',
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  ModuleControllers.getModulesByTeam,
+);
+
+// ── Get Modules by Company (via teams) ──
 router.get(
   '/company/:companyId',
   auth(USER_ROLE.admin, USER_ROLE.superAdmin),

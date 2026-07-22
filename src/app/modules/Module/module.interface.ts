@@ -78,7 +78,7 @@ export interface IModule {
   questions: TQuestion[];
   status: TModuleStatus;
   createdBy: Types.ObjectId;
-  companyId?: Types.ObjectId;
+  teamId?: Types.ObjectId;
   isDeleted: boolean;
 }
 

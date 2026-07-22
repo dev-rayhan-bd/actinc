@@ -101,31 +101,43 @@ const duplicateModule = catchAsync(async (req, res) => {
   });
 });
 
-// ── Assign Modules to Company ──
-const assignModulesToCompany = catchAsync(async (req, res) => {
-  const result = await ModuleServices.assignModulesToCompany(req.body);
+// ── Assign Modules to Team ──
+const assignModulesToTeam = catchAsync(async (req, res) => {
+  const result = await ModuleServices.assignModulesToTeam(req.body);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Modules assigned to company successfully',
+    message: 'Modules assigned to team successfully',
     data: result,
   });
 });
 
-// ── Unassign Module from Company ──
-const unassignModuleFromCompany = catchAsync(async (req, res) => {
-  const result = await ModuleServices.unassignModuleFromCompany(req.params.id as string);
+// ── Unassign Module from Team ──
+const unassignModuleFromTeam = catchAsync(async (req, res) => {
+  const result = await ModuleServices.unassignModuleFromTeam(req.params.id as string);
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-    message: 'Module unassigned from company successfully',
+    message: 'Module unassigned from team successfully',
     data: result,
   });
 });
 
-// ── Get Modules by Company ──
+// ── Get Modules by Team ──
+const getModulesByTeam = catchAsync(async (req, res) => {
+  const result = await ModuleServices.getModulesByTeam(req.params.teamId as string);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Team modules retrieved successfully',
+    data: result,
+  });
+});
+
+// ── Get Modules by Company (via teams) ──
 const getModulesByCompany = catchAsync(async (req, res) => {
   const result = await ModuleServices.getModulesByCompany(req.params.companyId as string);
 
@@ -144,7 +156,8 @@ export const ModuleControllers = {
   updateModule,
   deleteModule,
   duplicateModule,
-  assignModulesToCompany,
-  unassignModuleFromCompany,
+  assignModulesToTeam,
+  unassignModuleFromTeam,
+  getModulesByTeam,
   getModulesByCompany,
 };

@@ -69,9 +69,9 @@ const moduleSchema = new Schema<IModule, TModuleModel>(
       ref: 'Admin',
       required: true,
     },
-    companyId: {
+    teamId: {
       type: Schema.Types.ObjectId,
-      ref: 'Company',
+      ref: 'Team',
     },
     isDeleted: { type: Boolean, default: false },
   },

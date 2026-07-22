@@ -254,6 +254,8 @@ interface CompanyDetailsData {
   moduleCompliance: {
     moduleId: string;
     moduleName: string;
+    teamId: string | null;
+    teamName: string;
     completionPercentage: number;
     completedCount: number;
     totalAssigned: number;
@@ -278,9 +280,10 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
   const teams = await Team.find({ companyId }).select('_id name').lean();
   const teamMap = new Map(teams.map((t) => [t._id.toString(), t.name]));
 
-  // 4. Get all modules assigned to this company
-  const modules = await Module.find({ companyId, isDeleted: false, status: 'published' })
-    .select('_id title')
+  // 4. Get all modules assigned to this company's teams
+  const teamIds = teams.map((t) => t._id);
+  const modules = await Module.find({ teamId: { $in: teamIds }, isDeleted: false, status: 'published' })
+    .select('_id title teamId')
     .lean();
   const moduleIds = modules.map((m) => m._id);
 
@@ -351,17 +354,20 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
     })
   );
 
-  // 10. Module compliance
+  // 10. Module compliance (per module, showing which team it belongs to)
   const moduleCompliance = await Promise.all(
     modules.map(async (module) => {
       const moduleProgress = userProgress.filter((p) => p.moduleId.equals(module._id));
       const completed = moduleProgress.filter((p) => p.status === 'completed').length;
       const total = userIds.length;
       const completionPct = total > 0 ? Math.round((completed / total) * 100) : 0;
+      const assignedTeam = teams.find((t) => t._id.toString() === (module as any).teamId?.toString());
 
       return {
         moduleId: module._id.toString(),
         moduleName: module.title,
+        teamId: (module as any).teamId?.toString() || null,
+        teamName: assignedTeam?.name || 'Unassigned',
         completionPercentage: completionPct,
         completedCount: completed,
         totalAssigned: total,

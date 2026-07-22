@@ -98,7 +98,7 @@ const createModuleSchema = z.object({
     title: z.string().min(1, 'Module title is required'),
     description: z.string().min(1, 'Module description is required'),
     status: z.enum(['draft', 'published']).optional().default('draft'),
-    companyId: z.string().optional(),
+    teamId: z.string().optional(),
     questions: z
       .array(questionSchema)
       .optional()
@@ -112,7 +112,7 @@ const updateModuleSchema = z.object({
     title: z.string().min(1).optional(),
     description: z.string().min(1).optional(),
     status: z.enum(['draft', 'published']).optional(),
-    companyId: z.string().optional(),
+    teamId: z.string().optional(),
     questions: z.array(questionSchema).optional(),
   }),
 });
@@ -124,14 +124,22 @@ const duplicateModuleSchema = z.object({
   }),
 });
 
-// ── Assign Modules to Company ──
+// ── Assign Modules to Team (under Company) ──
 const assignModuleSchema = z.object({
   body: z.object({
     moduleId: z.string().optional(),
     moduleIds: z.array(z.string()).optional(),
     companyId: z.string().min(1, 'companyId is required'),
+    teamId: z.string().min(1, 'teamId is required'),
   }).refine((data) => data.moduleId || (data.moduleIds && data.moduleIds.length > 0), {
     message: 'Either moduleId or moduleIds is required',
+  }),
+});
+
+// ── Get Modules by Team ──
+const getModulesByTeamSchema = z.object({
+  params: z.object({
+    teamId: z.string().min(1, 'teamId is required'),
   }),
 });
 
@@ -147,5 +155,6 @@ export const ModuleValidation = {
   updateModuleSchema,
   duplicateModuleSchema,
   assignModuleSchema,
+  getModulesByTeamSchema,
   getModulesByCompanySchema,
 };

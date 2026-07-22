@@ -2,6 +2,8 @@ import httpStatus from 'http-status';
 import AppError from '../../errors/AppError';
 import { Module } from './module.model';
 import QueryBuilder from '../../builder/QueryBuilder';
+import { Team } from '../Team/team.model';
+import { Company } from '../Company/company.model';
 
 // ── Create Module ──
 const createModuleInDB = async (payload: any, userId: string) => {
@@ -102,9 +104,24 @@ const duplicateModuleInDB = async (id: string, newTitle: string, userId: string)
   return result;
 };
 
-// ── Assign Modules to Company (single or bulk) ──
-const assignModulesToCompany = async (payload: { moduleId?: string; moduleIds?: string[]; companyId: string }) => {
-  const { moduleId, moduleIds, companyId } = payload;
+// ── Assign Modules to Team (single or bulk) ──
+const assignModulesToTeam = async (payload: { moduleId?: string; moduleIds?: string[]; companyId: string; teamId: string }) => {
+  const { moduleId, moduleIds, companyId, teamId } = payload;
+
+  // Validate company exists and is active
+  const company = await Company.findOne({ _id: companyId, isDeleted: false });
+  if (!company) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
+  }
+  if (company.status !== 'active') {
+    throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
+  }
+
+  // Validate team exists and belongs to this company
+  const team = await Team.findOne({ _id: teamId, companyId: companyId });
+  if (!team) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Team not found in this company');
+  }
 
   // Single module assignment
   if (moduleId) {
@@ -115,7 +132,7 @@ const assignModulesToCompany = async (payload: { moduleId?: string; moduleIds?: 
 
     const result = await Module.findByIdAndUpdate(
       moduleId,
-      { companyId },
+      { teamId },
       { new: true, runValidators: true },
     ).populate('createdBy', 'firstName lastName email');
 
@@ -126,7 +143,7 @@ const assignModulesToCompany = async (payload: { moduleId?: string; moduleIds?: 
   if (moduleIds && moduleIds.length > 0) {
     const result = await Module.updateMany(
       { _id: { $in: moduleIds }, isDeleted: false },
-      { companyId },
+      { teamId },
       { runValidators: true },
     );
 
@@ -141,8 +158,8 @@ const assignModulesToCompany = async (payload: { moduleId?: string; moduleIds?: 
   throw new AppError(httpStatus.BAD_REQUEST, 'Either moduleId or moduleIds is required');
 };
 
-// ── Unassign Module from Company ──
-const unassignModuleFromCompany = async (moduleId: string) => {
+// ── Unassign Module from Team ──
+const unassignModuleFromTeam = async (moduleId: string) => {
   const module = await Module.findOne({ _id: moduleId, isDeleted: false });
   if (!module) {
     throw new AppError(httpStatus.NOT_FOUND, 'Module not found');
@@ -150,17 +167,32 @@ const unassignModuleFromCompany = async (moduleId: string) => {
 
   const result = await Module.findByIdAndUpdate(
     moduleId,
-    { companyId: null },
+    { teamId: null },
     { new: true, runValidators: true },
   ).populate('createdBy', 'firstName lastName email');
 
   return result;
 };
 
-// ── Get Modules by Company ──
-const getModulesByCompany = async (companyId: string) => {
-  const modules = await Module.find({ companyId, isDeleted: false })
+// ── Get Modules by Team ──
+const getModulesByTeam = async (teamId: string) => {
+  const modules = await Module.find({ teamId, isDeleted: false })
     .populate('createdBy', 'firstName lastName email')
+    .sort({ createdAt: -1 });
+
+  return modules;
+};
+
+// ── Get Modules by Company (via teams) ──
+const getModulesByCompany = async (companyId: string) => {
+  // Find all team IDs belonging to this company
+  const { Team } = await import('../Team/team.model');
+  const teams = await Team.find({ companyId }).select('_id').lean();
+  const teamIds = teams.map((t) => t._id);
+
+  const modules = await Module.find({ teamId: { $in: teamIds }, isDeleted: false })
+    .populate('createdBy', 'firstName lastName email')
+    .populate('teamId', 'name')
     .sort({ createdAt: -1 });
 
   return modules;
@@ -173,7 +205,8 @@ export const ModuleServices = {
   updateModuleInDB,
   deleteModuleFromDB,
   duplicateModuleInDB,
-  assignModulesToCompany,
-  unassignModuleFromCompany,
+  assignModulesToTeam,
+  unassignModuleFromTeam,
+  getModulesByTeam,
   getModulesByCompany,
 };
