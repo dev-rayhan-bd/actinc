@@ -34,17 +34,58 @@ const updateProfileInDB = async (userId: string, payload: any) => {
   return await User.findByIdAndUpdate(userId, payload, { new: true, runValidators: true });
 };
 
+const defaultBranding = {
+  primaryColor: '#8ACDDE',
+  secondaryColor: '#E9308F',
+  videoTitle: '',
+  videoDescription: '',
+  presenterName: '',
+  presenterDesignation: '',
+  videoUrl: '',
+};
+
 const getMeFromDB = async (userId: string, role: string) => {
-  let result = null;
+  let result: any = null;
   if (role === 'admin' || role === 'superAdmin') {
     result = await Admin.findById(userId);
-  } else {
-    result = await User.findById(userId);
+    return result;
   }
+
+  result = await User.findById(userId);
   if (!result) {
     throw new AppError(httpStatus.NOT_FOUND, 'User profile not found!');
   }
-  return result;
+
+  const userObj = result.toObject ? result.toObject() : { ...result };
+
+  // If regular user assigned to a company, fetch that company's branding
+  if (role === 'user' && result.companyId) {
+    const company = await User.findById(result.companyId).select('branding');
+    const compBranding: any = company?.branding || {};
+
+    userObj.branding = {
+      primaryColor: compBranding.primaryColor || defaultBranding.primaryColor,
+      secondaryColor: compBranding.secondaryColor || defaultBranding.secondaryColor,
+      videoTitle: compBranding.videoTitle || defaultBranding.videoTitle,
+      videoDescription: compBranding.videoDescription || defaultBranding.videoDescription,
+      presenterName: compBranding.presenterName || defaultBranding.presenterName,
+      presenterDesignation: compBranding.presenterDesignation || defaultBranding.presenterDesignation,
+      videoUrl: compBranding.videoUrl || defaultBranding.videoUrl,
+    };
+  } else if (role === 'company') {
+    const compBranding: any = result.branding || {};
+    userObj.branding = {
+      primaryColor: compBranding.primaryColor || defaultBranding.primaryColor,
+      secondaryColor: compBranding.secondaryColor || defaultBranding.secondaryColor,
+      videoTitle: compBranding.videoTitle || defaultBranding.videoTitle,
+      videoDescription: compBranding.videoDescription || defaultBranding.videoDescription,
+      presenterName: compBranding.presenterName || defaultBranding.presenterName,
+      presenterDesignation: compBranding.presenterDesignation || defaultBranding.presenterDesignation,
+      videoUrl: compBranding.videoUrl || defaultBranding.videoUrl,
+    };
+  }
+
+  return userObj;
 };
 
 const getUsersByCompany = async (companyId: string, query: Record<string, unknown>) => {

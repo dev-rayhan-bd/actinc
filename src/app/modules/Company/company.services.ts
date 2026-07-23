@@ -9,6 +9,7 @@ import { BehavioralAssessment } from '../BehavioralAssessment/behavioralAssessme
 import { TUser } from '../User/user.interface';
 import { getEmailTemplate } from '../../utils/emailTemplate';
 import sendEmail from '../../utils/sendEmail';
+import PDFDocument from 'pdfkit';
 
 /** Only company-role users should be treated as companies */
 const COMPANY_FILTER = { role: 'company' as const, isDeleted: false };
@@ -142,8 +143,13 @@ const updateCompanyInDB = async (id: string, payload: Partial<TUser>) => {
 };
 
 const updateBrandingInDB = async (id: string, payload: Record<string, any>) => {
-  // Build $set for nested branding fields
+  // Build $set for nested branding fields and top-level image field
   const setFields: Record<string, any> = {};
+
+  if (payload.logo || payload.image) {
+    setFields['image'] = payload.image || payload.logo;
+  }
+
   const allowedFields = [
     'primaryColor', 'secondaryColor', 'videoTitle',
     'videoDescription', 'presenterName', 'presenterDesignation', 'videoUrl',
@@ -423,6 +429,149 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
   };
 };
 
+// ── Generate PDF Report for Company Details (1-Click Download) ──
+const generateCompanyPDFReportFromDB = async (companyId: string): Promise<Buffer> => {
+  const data = await getCompanyDetailsFromDB(companyId);
+
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 50, size: 'A4' });
+    const buffers: Buffer[] = [];
+
+    doc.on('data', (chunk: Buffer) => buffers.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(buffers)));
+    doc.on('error', (err: Error) => reject(err));
+
+    const primaryColor = '#ec4899';
+    const darkHeaderBg = '#1e293b';
+
+    // Header Title
+    doc.fillColor('#1e293b').fontSize(22).font('Helvetica-Bold').text(data.company.name.toUpperCase(), 50, 40);
+    doc
+      .fontSize(10)
+      .font('Helvetica')
+      .fillColor('#64748b')
+      .text(`Industry: ${data.company.industry} | Total Active Employees: ${data.company.employeeCount}`, 50, 68);
+    doc
+      .fontSize(11)
+      .font('Helvetica-Bold')
+      .fillColor(primaryColor)
+      .text('COMPANY ANALYTICS & COMPLIANCE REPORT', 50, 85);
+
+    doc.moveTo(50, 105).lineTo(545, 105).strokeColor('#cbd5e1').stroke();
+
+    // 2. Summary KPI Box Grid
+    let y = 120;
+    doc.rect(50, y, 155, 60).fillAndStroke('#f8fafc', '#e2e8f0');
+    doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('ACTIVE PARTICIPANTS', 60, y + 12);
+    doc.fillColor('#0f172a').fontSize(18).font('Helvetica-Bold').text(`${data.stats.activeParticipants}`, 60, y + 28);
+
+    doc.rect(220, y, 155, 60).fillAndStroke('#f8fafc', '#e2e8f0');
+    doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('COMPLETION RATE', 230, y + 12);
+    doc.fillColor(primaryColor).fontSize(18).font('Helvetica-Bold').text(`${data.stats.completionRate}%`, 230, y + 28);
+
+    doc.rect(390, y, 155, 60).fillAndStroke('#f8fafc', '#e2e8f0');
+    doc.fillColor('#64748b').fontSize(9).font('Helvetica-Bold').text('ORGANIZATION GRADE', 400, y + 12);
+    doc.fillColor('#10b981').fontSize(18).font('Helvetica-Bold').text(`${data.stats.organizationGrade} / 10`, 400, y + 28);
+
+    y += 80;
+
+    // 3. Module Performance & Compliance Table
+    doc.fillColor('#0f172a').fontSize(14).font('Helvetica-Bold').text('Assigned Modules Compliance', 50, y);
+    y += 20;
+
+    // Table Header
+    doc.rect(50, y, 495, 24).fill(darkHeaderBg);
+    doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold');
+    doc.text('MODULE TITLE', 60, y + 7);
+    doc.text('COMPLETION RATE', 300, y + 7);
+    doc.text('COMPLETED / TOTAL', 430, y + 7);
+
+    y += 24;
+
+    if (data.moduleCompliance.length === 0) {
+      doc.rect(50, y, 495, 24).fill('#ffffff');
+      doc.fillColor('#64748b').fontSize(9).font('Helvetica').text('No assigned modules found.', 60, y + 7);
+      y += 24;
+    } else {
+      data.moduleCompliance.forEach((item, index) => {
+        if (y > 700) {
+          doc.addPage();
+          y = 50;
+        }
+        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        doc.rect(50, y, 495, 22).fill(bgColor);
+        doc.fillColor('#334155').fontSize(9).font('Helvetica');
+        doc.text(item.moduleName, 60, y + 6, { width: 230, ellipsis: true });
+        doc
+          .font('Helvetica-Bold')
+          .fillColor(item.completionPercentage >= 75 ? '#10b981' : '#f59e0b')
+          .text(`${item.completionPercentage}%`, 300, y + 6);
+        doc.font('Helvetica').fillColor('#475569');
+        doc.text(`${item.completedCount} / ${item.totalAssigned}`, 430, y + 6);
+        y += 22;
+      });
+    }
+
+    y += 25;
+
+    // 4. Location & Team Performance Table
+    if (y > 660) {
+      doc.addPage();
+      y = 50;
+    }
+
+    doc.fillColor('#0f172a').fontSize(14).font('Helvetica-Bold').text('Location & Team Performance', 50, y);
+    y += 20;
+
+    // Table Header
+    doc.rect(50, y, 495, 24).fill(darkHeaderBg);
+    doc.fillColor('#ffffff').fontSize(9).font('Helvetica-Bold');
+    doc.text('LOCATION / TEAM NAME', 60, y + 7);
+    doc.text('ACTIVE USERS', 250, y + 7);
+    doc.text('PROGRESS %', 350, y + 7);
+    doc.text('AVG SCORE', 450, y + 7);
+
+    y += 24;
+
+    if (data.teamPerformance.length === 0) {
+      doc.rect(50, y, 495, 24).fill('#ffffff');
+      doc.fillColor('#64748b').fontSize(9).font('Helvetica').text('No teams found.', 60, y + 7);
+      y += 24;
+    } else {
+      data.teamPerformance.forEach((team, index) => {
+        if (y > 700) {
+          doc.addPage();
+          y = 50;
+        }
+        const bgColor = index % 2 === 0 ? '#ffffff' : '#f8fafc';
+        doc.rect(50, y, 495, 22).fill(bgColor);
+        doc.fillColor('#334155').fontSize(9).font('Helvetica');
+        doc.text(team.teamName, 60, y + 6, { width: 180, ellipsis: true });
+        doc.text(`${team.activeCount}`, 250, y + 6);
+        doc.font('Helvetica-Bold').fillColor('#10b981').text(`${team.progressPercentage}%`, 350, y + 6);
+        doc.font('Helvetica-Bold').fillColor('#6366f1').text(`${team.averageScore}%`, 450, y + 6);
+        y += 22;
+      });
+    }
+
+    // Page Numbers Footer
+    const pages = doc.bufferedPageRange();
+    for (let i = 0; i < pages.count; i++) {
+      doc.switchToPage(i);
+      doc
+        .fontSize(8)
+        .font('Helvetica')
+        .fillColor('#94a3b8')
+        .text(`Generated by ActInc Analytics System | Page ${i + 1} of ${pages.count}`, 50, 780, {
+          align: 'center',
+          width: 495,
+        });
+    }
+
+    doc.end();
+  });
+};
+
 export const CompanyServices = {
   createCompanyIntoDB,
   getAllCompaniesFromDB,
@@ -433,4 +582,5 @@ export const CompanyServices = {
   deleteCompanyFromDB,
   getDropdownCompaniesFromDB,
   getCompanyDetailsFromDB,
+  generateCompanyPDFReportFromDB,
 };

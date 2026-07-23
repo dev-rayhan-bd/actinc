@@ -73,4 +73,11 @@ router.get(
   CompanyControllers.getCompanyDetails,
 );
 
+// ── Download Company Details PDF Report (1-Click Download) ──
+router.get(
+  '/:id/download-report',
+  auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),
+  CompanyControllers.downloadCompanyReportPDF,
+);
+
 export const CompanyRoutes = router;

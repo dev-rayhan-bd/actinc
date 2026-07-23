@@ -50,13 +50,15 @@ const updateBranding = catchAsync(async (req, res) => {
   const bodyData = req.body.data ? JSON.parse(req.body.data) : req.body;
   const payload: Record<string, any> = { ...bodyData };
 
-  // Upload logo if provided (field name: "logo")
+  // Upload logo if provided (field name: "logo" or "image")
   if (req.files && (req.files as any).logo) {
     const logoUrl = await uploadImage(req, (req.files as any).logo[0]);
     payload.logo = logoUrl;
-
-    // Also update the company's top-level logo field
-    await CompanyServices.updateCompanyInDB(req.params.id as string, { logo: logoUrl } as any);
+    payload.image = logoUrl;
+  } else if (req.files && (req.files as any).image) {
+    const logoUrl = await uploadImage(req, (req.files as any).image[0]);
+    payload.logo = logoUrl;
+    payload.image = logoUrl;
   }
 
   // Upload onboarding video if provided (field name: "video")
@@ -114,6 +116,19 @@ const getCompanyDetails = catchAsync(async (req, res) => {
   });
 });
 
+const downloadCompanyReportPDF = catchAsync(async (req, res) => {
+  const companyId = req.params.id as string;
+  const pdfBuffer = await CompanyServices.generateCompanyPDFReportFromDB(companyId);
+
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="Company_Report_${companyId}.pdf"`,
+  );
+
+  res.send(pdfBuffer);
+});
+
 export const CompanyControllers = {
   createCompany,
   getAllCompanies,
@@ -124,4 +139,5 @@ export const CompanyControllers = {
   deleteCompany,
   getDropdownCompanies,
   getCompanyDetails,
+  downloadCompanyReportPDF,
 };
