@@ -12,7 +12,7 @@ const metricSchema = new Schema(
 const behavioralAssessmentSchema = new Schema<IBehavioralAssessment, BehavioralAssessmentModel>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+    companyId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     teamId: { type: Schema.Types.ObjectId, ref: 'Team' },
     type: {
       type: String,

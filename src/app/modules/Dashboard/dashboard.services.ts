@@ -1,11 +1,10 @@
-import { Company } from '../Company/company.model';
 import { User } from '../User/user.model';
 import { Module } from '../Module/module.model';
 
 // ── Get Platform Overview Stats ──
 const getPlatformStats = async () => {
   const [totalCompanies, activeEmployees, totalModules] = await Promise.all([
-    Company.countDocuments({ isDeleted: false }),
+    User.countDocuments({ role: 'company', isDeleted: false }),
     User.countDocuments({ isDeleted: false, status: 'active' }),
     Module.countDocuments({ isDeleted: false }),
   ]);
@@ -39,17 +38,17 @@ const getCompanyBreakdown = async () => {
     moduleCounts.map((item) => [item._id?.toString(), item.modulesBuilt])
   );
 
-  // Get all non-deleted companies
-  const companies = await Company.find({ isDeleted: false })
-    .select('name status')
-    .sort({ name: 1 });
+  // Get all non-deleted companies (Users with role: company)
+  const companies = await User.find({ role: 'company', isDeleted: false })
+    .select('firstName status')
+    .sort({ firstName: 1 });
 
   // Build the table data
   const tableData = companies.map((company) => {
     const companyId = company._id.toString();
     return {
       companyId,
-      company: company.name,
+      company: company.firstName,
       activeUsers: userCountMap.get(companyId) || 0,
       modulesBuilt: moduleCountMap.get(companyId) || 0,
       platformStatus: company.status === 'active' ? 'Active' : 

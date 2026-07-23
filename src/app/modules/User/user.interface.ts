@@ -4,6 +4,20 @@ export type TUserRole = 'user' | 'admin' | 'superAdmin' | 'company';
 
 export type TAuthType = 'email' | 'employeeId' | 'anonymous' | 'qr';
 
+/** Company-only status — broader than the generic user status */
+export type TCompanyStatus = 'active' | 'inactive' | 'suspended';
+
+/** Branding fields (used by role: 'company' users) */
+export interface TCompanyBranding {
+  primaryColor: string;
+  secondaryColor: string;
+  videoTitle: string;
+  videoDescription: string;
+  presenterName: string;
+  presenterDesignation: string;
+  videoUrl: string;
+}
+
 export interface TUser {
   firstName: string;
   lastName?: string;
@@ -17,7 +31,11 @@ export interface TUser {
   employeeId?: string;
   companyId?: Types.ObjectId;
   teamId?: Types.ObjectId;
-  status: 'active' | 'blocked';
+  status: 'active' | 'blocked' | 'inactive' | 'suspended';
+  /** Company-specific fields (only meaningful when role === 'company') */
+  slug?: string;
+  address?: string;
+  branding?: TCompanyBranding;
   isOtpVerified: boolean;
   isDeleted: boolean;
   otp?: string | null;
@@ -27,6 +45,8 @@ export interface TUser {
   fcmToken?: string | null;
   passwordChangedAt?: Date;
   lastActiveAt?: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export interface IUserMethods {

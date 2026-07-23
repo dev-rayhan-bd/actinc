@@ -5,15 +5,12 @@ import { CompanyServices } from './company.services';
 import uploadImage from '../../middleware/upload';
 
 const createCompany = catchAsync(async (req, res) => {
-  const { company, tempPassword } = await CompanyServices.createCompanyIntoDB(req.body);
+  const company = await CompanyServices.createCompanyIntoDB(req.body);
   sendResponse(res, {
     statusCode: httpStatus.CREATED,
     success: true,
     message: 'Company created successfully. Login credentials have been sent to the company email.',
-    data: {
-      company,
-      tempPassword, // admin can see it — credentials also sent via email
-    },
+    data: company,
   });
 });
 

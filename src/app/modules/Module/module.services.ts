@@ -3,7 +3,7 @@ import AppError from '../../errors/AppError';
 import { Module } from './module.model';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Team } from '../Team/team.model';
-import { Company } from '../Company/company.model';
+import { User } from '../User/user.model';
 
 // ── Create Module ──
 const createModuleInDB = async (payload: any, userId: string) => {
@@ -108,8 +108,8 @@ const duplicateModuleInDB = async (id: string, newTitle: string, userId: string)
 const assignModulesToTeam = async (payload: { moduleId?: string; moduleIds?: string[]; companyId: string; teamId: string }) => {
   const { moduleId, moduleIds, companyId, teamId } = payload;
 
-  // Validate company exists and is active
-  const company = await Company.findOne({ _id: companyId, isDeleted: false });
+  // Validate company exists and is active (company is a User with role: 'company')
+  const company = await User.findOne({ _id: companyId, role: 'company' });
   if (!company) {
     throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   }

@@ -1,16 +1,17 @@
 import httpStatus from 'http-status';
-import crypto from 'crypto';
 import AppError from '../../errors/AppError';
 import QueryBuilder from '../../builder/QueryBuilder';
-import { Company } from './company.model';
 import { User } from '../User/user.model';
 import { Module } from '../Module/module.model';
 import { Team } from '../Team/team.model';
 import { UserProgress } from '../UserProgress/userProgress.model';
 import { BehavioralAssessment } from '../BehavioralAssessment/behavioralAssessment.model';
-import { TCompany } from './company.interface';
+import { TUser } from '../User/user.interface';
 import { getEmailTemplate } from '../../utils/emailTemplate';
 import sendEmail from '../../utils/sendEmail';
+
+/** Only company-role users should be treated as companies */
+const COMPANY_FILTER = { role: 'company' as const, isDeleted: false };
 
 // Auto-generate a human-readable temp password
 const generateTempPassword = (): string => {
@@ -46,57 +47,36 @@ const slugify = (name: string): string => {
 const createCompanyIntoDB = async (payload: { name: string; email: string; address?: string }) => {
   const { name, email, address } = payload;
 
-  // Check email uniqueness across Company + User collections
-  const existingCompany = await Company.findOne({ email: email.toLowerCase() });
-  if (existingCompany) {
-    throw new AppError(httpStatus.CONFLICT, 'A company with this email already exists');
-  }
+  // Check email uniqueness across User collection only
   const existingUser = await User.findOne({ email: email.toLowerCase() });
   if (existingUser) {
-    throw new AppError(httpStatus.CONFLICT, 'This email is already registered as a user');
+    throw new AppError(httpStatus.CONFLICT, 'This email is already registered');
   }
 
   // Auto-generate slug — append suffix if conflict
   let slug = slugify(name);
   let slugCounter = 1;
-  while (await Company.findOne({ slug })) {
+  while (await User.findOne({ slug, role: 'company' })) {
     slug = `${slugify(name)}-${slugCounter++}`;
   }
 
   // Auto-generate temp password
   const tempPassword = generateTempPassword();
 
-  // 1) Create Company record
-  const company = await Company.create({
-    name,
+  // Create single User record with role: company
+  const company = await User.create({
+    firstName: name,
     email: email.toLowerCase(),
     address: address || '',
     slug,
+    password: tempPassword,
+    role: 'company',
+    authType: 'email',
     status: 'active',
+    isOtpVerified: true,
   });
 
-  // 2) Create User login account (role: company)
-  try {
-    await User.create({
-      firstName: name,
-      email: email.toLowerCase(),
-      password: tempPassword,
-      role: 'company',
-      authType: 'email',
-      companyId: company._id,
-      status: 'active',
-      isOtpVerified: true,
-    });
-  } catch (userError: any) {
-    // Rollback: delete the Company we just created
-    await Company.findByIdAndDelete(company._id);
-    throw new AppError(
-      httpStatus.INTERNAL_SERVER_ERROR,
-      `Failed to create company login account: ${userError?.message || userError}`,
-    );
-  }
-
-  // 3) Send credentials email
+  // 2) Send credentials email
   try {
     const html = getEmailTemplate({
       userName: name,
@@ -117,36 +97,41 @@ const createCompanyIntoDB = async (payload: { name: string; email: string; addre
     // Don't fail the whole operation — company is created, email failure is logged
   }
 
-  return {
-    company,
-    tempPassword, // returned so admin can see it (not sent in response to client)
-  };
+  return company;
 };
 
 const getAllCompaniesFromDB = async (query: Record<string, unknown>) => {
-  const queryBuilder = new QueryBuilder(Company.find({ isDeleted: false }), query);
-  queryBuilder.search(['name', 'slug']).filter().sort().paginate();
+  const queryBuilder = new QueryBuilder(
+    User.find(COMPANY_FILTER).select('-password -otp -otpExpires'),
+    query,
+  );
+  queryBuilder.search(['firstName', 'slug']).filter().sort().paginate();
   const result = await queryBuilder.modelQuery;
   const meta = await queryBuilder.countTotal();
   return { meta, result };
 };
 
 const getSingleCompanyFromDB = async (id: string) => {
-  const result = await Company.findOne({ _id: id, isDeleted: false });
+  const result = await User.findOne({ _id: id, ...COMPANY_FILTER }).select('-password -otp -otpExpires');
   if (!result) {
     throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   }
   return result;
 };
 
-const updateCompanyInDB = async (id: string, payload: Partial<TCompany>) => {
+const updateCompanyInDB = async (id: string, payload: Partial<TUser>) => {
   if (payload.slug) {
-    const existing = await Company.findOne({ slug: payload.slug, _id: { $ne: id } });
+    const existing = await User.findOne({ slug: payload.slug, _id: { $ne: id }, role: 'company' });
     if (existing) {
       throw new AppError(httpStatus.CONFLICT, 'A company with this slug already exists');
     }
   }
-  const result = await Company.findByIdAndUpdate(id, payload, {
+  // Map 'name' → 'firstName' if provided
+  if ((payload as any).name) {
+    (payload as any).firstName = (payload as any).name;
+    delete (payload as any).name;
+  }
+  const result = await User.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,
   });
@@ -169,7 +154,7 @@ const updateBrandingInDB = async (id: string, payload: Record<string, any>) => {
     }
   }
 
-  const result = await Company.findByIdAndUpdate(
+  const result = await User.findByIdAndUpdate(
     id,
     { $set: setFields },
     { new: true, runValidators: true },
@@ -181,7 +166,7 @@ const updateBrandingInDB = async (id: string, payload: Record<string, any>) => {
 };
 
 const updateCompanyStatusInDB = async (id: string, status: string) => {
-  const company = await Company.findByIdAndUpdate(
+  const company = await User.findByIdAndUpdate(
     id,
     { status },
     { new: true },
@@ -190,8 +175,8 @@ const updateCompanyStatusInDB = async (id: string, status: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   }
 
-  // Sync related User accounts status
-  // Users with companyId matching this company get the same status mapping
+  // Sync related employee User accounts status
+  // Employees with companyId matching this company get the same status mapping
   const userStatus = status === 'active' ? 'active' : 'blocked';
   const userUpdateResult = await User.updateMany(
     { companyId: company._id },
@@ -204,12 +189,12 @@ const updateCompanyStatusInDB = async (id: string, status: string) => {
 };
 
 const getDropdownCompaniesFromDB = async () => {
-  return Company.find({ isDeleted: false }).select('_id name').lean();
+  return User.find(COMPANY_FILTER).select('_id firstName').lean();
 };
 
 const deleteCompanyFromDB = async (id: string) => {
-  const company = await Company.findOneAndUpdate(
-    { _id: id, isDeleted: false },
+  const company = await User.findOneAndUpdate(
+    { _id: id, ...COMPANY_FILTER },
     { isDeleted: true },
     { new: true },
   );
@@ -217,7 +202,7 @@ const deleteCompanyFromDB = async (id: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   }
 
-  // Soft-delete all related User accounts
+  // Soft-delete all related employee User accounts
   await User.updateMany(
     { companyId: company._id },
     { isDeleted: true, status: 'blocked' },
@@ -263,8 +248,8 @@ interface CompanyDetailsData {
 }
 
 const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetailsData> => {
-  // 1. Get company basic info
-  const company = await Company.findOne({ _id: companyId, isDeleted: false });
+  // 1. Get company basic info (from User collection with role: company)
+  const company = await User.findOne({ _id: companyId, ...COMPANY_FILTER });
   if (!company) {
     throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   }
@@ -377,7 +362,7 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
 
   return {
     company: {
-      name: company.name,
+      name: company.firstName,
       industry: company.address || 'Not specified', // Using address as industry placeholder
       employeeCount: activeParticipants,
       memberSince: company.createdAt as Date,

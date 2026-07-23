@@ -59,6 +59,11 @@ const auth = (...requiredRoles: TAuthRole[]) => {
       throw new AppError(httpStatus.FORBIDDEN, 'This user is blocked!');
     }
 
+    // Company users with 'inactive' or 'suspended' status cannot access the system
+    if ((user as any).status === 'inactive' || (user as any).status === 'suspended') {
+      throw new AppError(httpStatus.FORBIDDEN, 'This account is not active. Contact support.');
+    }
+
     // Check if JWT was issued before password change
     if (
       role !== 'admin' && role !== 'superAdmin' &&

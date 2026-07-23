@@ -56,4 +56,5 @@ export type TJwtPayload = {
   teamId?: string;
   authType?: string;
   type?: string;
+  qrVersion?: number;
 };

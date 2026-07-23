@@ -78,7 +78,7 @@ router.get(
 // ── Get Modules by Company (via teams) ──
 router.get(
   '/company/:companyId',
-  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.company),
   ModuleControllers.getModulesByCompany,
 );
 

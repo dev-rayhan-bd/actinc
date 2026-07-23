@@ -5,8 +5,9 @@ import { TTeam, TeamModel } from './team.interface';
 const teamSchema = new Schema<TTeam, TeamModel>(
   {
     name: { type: String, required: true, trim: true },
-    companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+    companyId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     passcode: { type: String, required: true },
+    qrVersion: { type: Number, default: 0 },
   },
   { timestamps: true },
 );

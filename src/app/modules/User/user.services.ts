@@ -48,14 +48,10 @@ const getMeFromDB = async (userId: string, role: string) => {
 };
 
 const getUsersByCompany = async (companyId: string, query: Record<string, unknown>) => {
-  const filterQuery: Record<string, unknown> = {
-    companyId,
-    isDeleted: false,
-  };
-
-  const mergedQuery = { ...query, ...filterQuery };
-
-  const userQuery = new QueryBuilder(User.find({ companyId, isDeleted: false }), mergedQuery)
+  const userQuery = new QueryBuilder(
+    User.find({ companyId, role: 'user', isDeleted: false }).select('-password -otp -otpExpires'),
+    query,
+  )
     .search(['firstName', 'lastName', 'email', 'phone', 'employeeId'])
     .filter()
     .sort()

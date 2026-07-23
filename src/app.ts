@@ -28,7 +28,7 @@ const limiter = rateLimit({
   standardHeaders: true, 
   legacyHeaders: false, 
 });
-app.use('/api', limiter); 
+// app.use('/api', limiter); 
 
 app.use(express.json({ limit: '10kb' })); // body size limit 10kb, to prevent DoS attacks
 

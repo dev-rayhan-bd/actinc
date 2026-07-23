@@ -46,8 +46,8 @@ const getMe = catchAsync(async (req, res) => {
 });
 
 const getUsersByCompany = catchAsync(async (req, res) => {
-  const { companyId } = req.user;
-  const result = await UserServices.getUsersByCompany(companyId!, req.query);
+  const { userId } = req.user;
+  const result = await UserServices.getUsersByCompany(userId!, req.query);
   sendResponse(res, { statusCode: 200, success: true, message: 'Company users retrieved', data: result });
 });
 

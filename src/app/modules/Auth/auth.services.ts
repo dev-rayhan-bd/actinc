@@ -3,7 +3,6 @@ import bcrypt from 'bcrypt';
 import { Types } from 'mongoose';
 import AppError from '../../errors/AppError';
 import { User } from '../User/user.model';
-import { Company } from '../Company/company.model';
 import { Team } from '../Team/team.model';
 import { createToken, verifyToken } from './auth.utils';
 import config from '../../config';
@@ -48,8 +47,8 @@ const registerUser = async (payload: TUser & { companyId: string; teamId: string
   const isExist = await User.findOne({ email: payload.email });
   if (isExist) throw new AppError(409, 'Email already registered');
 
-  // Validate company exists and is active
-  const company = await Company.findById(companyId);
+  // Validate company exists and is active (company is now a User with role: 'company')
+  const company = await User.findOne({ _id: companyId, role: 'company' });
   if (!company) throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   if (company.status !== 'active') throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
 
@@ -127,7 +126,11 @@ const verifyOTPForRegistration = async (identifier: string, otp: string) => {
   user.otpExpires = null;
   await user.save();
 
-  const jwtPayload = { userId: user._id.toString(), role: user.role };
+  // Include companyId for company role so downstream controllers work correctly
+  const jwtPayload: Record<string, string> = { userId: user._id.toString(), role: user.role };
+  if (user.role === 'company') {
+    jwtPayload.companyId = user._id.toString();
+  }
   return { 
     accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in!),
     refreshToken: createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in!),
@@ -138,23 +141,18 @@ const verifyOTPForRegistration = async (identifier: string, otp: string) => {
 // ─────────────────────────────────────────────
 //  FLOW 1 & 2: Login via email/password
 //  Supports: superAdmin, admin, company, user roles
-//  For 'company' role — verifies company is active
+//  For 'company' role — company IS a User, so own status is the company status
 // ─────────────────────────────────────────────
 const loginUser = async (payload: { identifier: string; password: string; fcmToken?: string }) => {
   const user = await User.findOne({ $or: [{ email: payload.identifier }, { phone: payload.identifier }] }).select('+password');
-  if (!user || user.status === 'blocked' || !user.isOtpVerified) 
+  if (!user || user.isDeleted || user.status === 'blocked' || user.status === 'inactive' || user.status === 'suspended' || !user.isOtpVerified) 
     throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid credentials or account not verified');
 
   const isMatch = await user.isPasswordMatched(payload.password, user.password!);
   if (!isMatch) throw new AppError(httpStatus.FORBIDDEN, 'Incorrect password');
 
-  // If user has 'company' role, verify their company is active
-  if (user.role === 'company' && user.companyId) {
-    const company = await Company.findById(user.companyId);
-    if (!company || company.status !== 'active') {
-      throw new AppError(httpStatus.FORBIDDEN, 'Your company account is not active. Contact support.');
-    }
-  }
+  // Company role: status already checked above — company IS a User now (Single-Table Inheritance)
+  // No separate Company document lookup needed.
 
   // Update FCM token
   if (payload.fcmToken) {
@@ -164,7 +162,11 @@ const loginUser = async (payload: { identifier: string; password: string; fcmTok
   user.lastActiveAt = new Date();
   await user.save();
 
-  const jwtPayload = { userId: user._id.toString(), role: user.role };
+  // Include companyId for company role so req.user.companyId works in downstream controllers
+  const jwtPayload: Record<string, string> = { userId: user._id.toString(), role: user.role };
+  if (user.role === 'company') {
+    jwtPayload.companyId = user._id.toString();
+  }
   return {
     accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in!),
     refreshToken: createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in!),
@@ -185,8 +187,8 @@ const employeeIdLogin = async (payload: TEmployeeIdLogin) => {
   if (!team) throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
   if (team.companyId.toString() !== companyId) throw new AppError(httpStatus.BAD_REQUEST, 'Team does not belong to this company');
 
-  // Validate company is active
-  const company = await Company.findById(companyId);
+  // Validate company is active (company is a User with role: 'company')
+  const company = await User.findOne({ _id: companyId, role: 'company' });
   if (!company) throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   if (company.status !== 'active') throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
 
@@ -196,7 +198,7 @@ const employeeIdLogin = async (payload: TEmployeeIdLogin) => {
   if (!user) {
     // Just-in-time registration: create new user
     // Email lagbe na — unique placeholder email: firstname@companyname.com
-    const companySlug = company.name.toLowerCase().replace(/\s+/g, '');
+    const companySlug = company.firstName.toLowerCase().replace(/\s+/g, '');
     const placeholderEmail = `${firstName.toLowerCase()}@${companySlug}.com`;
 
     user = await User.create({
@@ -236,8 +238,8 @@ const employeeIdLogin = async (payload: TEmployeeIdLogin) => {
 const guestLogin = async (payload: TGuestLogin) => {
   const { passcode, companyId, teamId } = payload;
 
-  // Validate company is active
-  const company = await Company.findById(companyId);
+  // Validate company is active (company is a User with role: 'company')
+  const company = await User.findOne({ _id: companyId, role: 'company' });
   if (!company) throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   if (company.status !== 'active') throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
 
@@ -285,8 +287,8 @@ const qrCodeLogin = async (payload: { qrToken: string }) => {
     throw new AppError(httpStatus.BAD_REQUEST, 'Invalid QR code type');
   }
 
-  // Validate company is active
-  const company = await Company.findById(companyId);
+  // Validate company is active (company is a User with role: 'company')
+  const company = await User.findOne({ _id: companyId, role: 'company' });
   if (!company) throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   if (company.status !== 'active') throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
 
@@ -294,6 +296,11 @@ const qrCodeLogin = async (payload: { qrToken: string }) => {
   const team = await Team.findById(teamId);
   if (!team) throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
   if (team.companyId.toString() !== companyId) throw new AppError(httpStatus.BAD_REQUEST, 'Team does not belong to this company');
+
+  // Verify QR version — reject if a newer QR was generated for this team
+  if (decoded.qrVersion !== undefined && decoded.qrVersion !== team.qrVersion) {
+    throw new AppError(httpStatus.UNAUTHORIZED, 'QR code is no longer valid. Please scan a new one.');
+  }
 
   // ── Auto Register new user (zero input from user) ──
   const guestId = `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -315,7 +322,7 @@ const qrCodeLogin = async (payload: { qrToken: string }) => {
     lastActiveAt: new Date(),
   });
 
-  console.log(`✅ Auto-registered via QR code: ${autoName} in company ${company.name}`);
+  console.log(`✅ Auto-registered via QR code: ${autoName} in company ${company.firstName}`);
 
   const jwtPayload = { userId: user._id.toString(), role: 'user', companyId, teamId, authType: 'qr' as const };
   return {
@@ -452,7 +459,11 @@ const refreshToken = async (token: string) => {
 
   const user = await User.findById(decoded.userId);
   if (!user || user.status === 'blocked') throw new AppError(httpStatus.FORBIDDEN, 'Unauthorized');
-  return { accessToken: createToken({ userId: user._id.toString(), role: user.role }, config.jwt_access_secret!, '1d') };
+  const refreshPayload: Record<string, string> = { userId: user._id.toString(), role: user.role };
+  if (user.role === 'company') {
+    refreshPayload.companyId = user._id.toString();
+  }
+  return { accessToken: createToken(refreshPayload, config.jwt_access_secret!, '1d') };
 };
 
 
@@ -463,8 +474,8 @@ const refreshToken = async (token: string) => {
 //  Company/Admin/SuperAdmin generates QR code for guest login
 // ─────────────────────────────────────────────
 const generateQRCode = async (companyId: string, teamId: string, role: string) => {
-  // Validate company exists and is active
-  const company = await Company.findById(companyId);
+  // Validate company exists and is active (company is a User with role: 'company')
+  const company = await User.findOne({ _id: companyId, role: 'company' });
   if (!company) throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   if (company.status !== 'active') throw new AppError(httpStatus.FORBIDDEN, 'Company account is not active');
 
@@ -473,11 +484,15 @@ const generateQRCode = async (companyId: string, teamId: string, role: string) =
   if (!team) throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
   if (team.companyId.toString() !== companyId) throw new AppError(httpStatus.BAD_REQUEST, 'Team does not belong to this company');
 
-  // Generate JWT token for QR code (valid for 5 minutes)
+  // Increment qrVersion — old QR tokens for this team will become invalid
+  const newVersion = (team.qrVersion || 0) + 1;
+  await Team.findByIdAndUpdate(teamId, { qrVersion: newVersion });
+
+  // Generate JWT token for QR code — no expiry, invalidated by qrVersion check
   const qrToken = createToken(
-    { companyId, teamId, type: 'qr_login' },
+    { companyId, teamId, type: 'qr_login', qrVersion: newVersion },
     config.jwt_access_secret!,
-    '5m'
+    '365d' // long-lived; actual invalidation is via qrVersion mismatch
   );
 
   // ── QR code contains FULL URL with companyId + teamId ──
@@ -494,14 +509,14 @@ const generateQRCode = async (companyId: string, teamId: string, role: string) =
     },
   });
 
-  console.log(`✅ QR code generated for company: ${company.name}, team: ${team.name}`);
+  console.log(`✅ QR code generated for company: ${company.firstName}, team: ${team.name}`);
 
   return {
     qrToken,
     qrUrl, // Full URL: frontend.com/qr-login?token=xxx&companyId=xxx&teamId=xxx
     qrImage: qrDataUrl, // base64 data URL — frontend e <img src={qrImage}> set korte parbe
-    expiresIn: '5 minutes',
-    company: { _id: company._id, name: company.name },
+    qrVersion: newVersion,
+    company: { _id: company._id, name: company.firstName },
     team: { _id: team._id, name: team.name },
   };
 };

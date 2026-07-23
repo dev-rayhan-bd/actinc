@@ -15,7 +15,7 @@ const answerSchema = new Schema(
 const userProgressSchema = new Schema<IUserProgress, UserProgressModel>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    companyId: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+    companyId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     teamId: { type: Schema.Types.ObjectId, ref: 'Team' },
     moduleId: { type: Schema.Types.ObjectId, ref: 'Module', required: true },
     status: {

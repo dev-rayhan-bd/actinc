@@ -1,7 +1,20 @@
 import { Schema, model } from "mongoose";
 import bcrypt from "bcrypt";
 import config from "../../config";
-import { IUserMethods, TUser, UserModel } from "./user.interface";
+import { IUserMethods, TUser, TCompanyBranding, UserModel } from "./user.interface";
+
+const brandingSubSchema = new Schema<TCompanyBranding>(
+  {
+    primaryColor: { type: String, default: '#8ACDDE' },
+    secondaryColor: { type: String, default: '#E9308F' },
+    videoTitle: { type: String, default: '' },
+    videoDescription: { type: String, default: '' },
+    presenterName: { type: String, default: '' },
+    presenterDesignation: { type: String, default: '' },
+    videoUrl: { type: String, default: '' },
+  },
+  { _id: false },
+);
 
 const userSchema = new Schema<TUser, UserModel, IUserMethods>(
   {
@@ -23,13 +36,17 @@ const userSchema = new Schema<TUser, UserModel, IUserMethods>(
       default: "user",
     },
     employeeId: { type: String },
-    companyId: { type: Schema.Types.ObjectId, ref: 'Company' },
+    companyId: { type: Schema.Types.ObjectId, ref: 'User' },
     teamId: { type: Schema.Types.ObjectId, ref: 'Team' },
     status: {
       type: String,
-      enum: ["active", "blocked"],
+      enum: ["active", "blocked", "inactive", "suspended"],
       default: "active",
     },
+    // Company-specific fields (only used when role === 'company')
+    slug: { type: String, sparse: true, unique: true },
+    address: { type: String, default: '' },
+    branding: { type: brandingSubSchema, default: () => ({}) },
     isOtpVerified: { type: Boolean, default: false },
     isDeleted: { type: Boolean, default: false },
     otp: { type: String, select: 0 },
