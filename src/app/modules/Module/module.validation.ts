@@ -99,6 +99,7 @@ const createModuleSchema = z.object({
     description: z.string().min(1, 'Module description is required'),
     status: z.enum(['draft', 'published']).optional().default('draft'),
     teamId: z.string().optional(),
+    companyId: z.string().optional(),
     questions: z
       .array(questionSchema)
       .optional()
@@ -113,6 +114,7 @@ const updateModuleSchema = z.object({
     description: z.string().min(1).optional(),
     status: z.enum(['draft', 'published']).optional(),
     teamId: z.string().optional(),
+    companyId: z.string().optional(),
     questions: z.array(questionSchema).optional(),
   }),
 });

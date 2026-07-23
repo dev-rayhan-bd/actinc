@@ -73,6 +73,10 @@ const moduleSchema = new Schema<IModule, TModuleModel>(
       type: Schema.Types.ObjectId,
       ref: 'Team',
     },
+    companyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+    },
     isDeleted: { type: Boolean, default: false },
   },
   { timestamps: true },
@@ -82,6 +86,7 @@ const moduleSchema = new Schema<IModule, TModuleModel>(
 moduleSchema.index({ title: 'text', description: 'text' });
 moduleSchema.index({ status: 1 });
 moduleSchema.index({ createdBy: 1 });
+moduleSchema.index({ companyId: 1 });
 moduleSchema.index({ isDeleted: 1 });
 
 export const Module = model<IModule, TModuleModel>('Module', moduleSchema);

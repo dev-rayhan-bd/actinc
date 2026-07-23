@@ -132,7 +132,7 @@ const assignModulesToTeam = async (payload: { moduleId?: string; moduleIds?: str
 
     const result = await Module.findByIdAndUpdate(
       moduleId,
-      { teamId },
+      { teamId, companyId, status: 'published' },
       { new: true, runValidators: true },
     ).populate('createdBy', 'firstName lastName email');
 
@@ -143,7 +143,7 @@ const assignModulesToTeam = async (payload: { moduleId?: string; moduleIds?: str
   if (moduleIds && moduleIds.length > 0) {
     const result = await Module.updateMany(
       { _id: { $in: moduleIds }, isDeleted: false },
-      { teamId },
+      { teamId, companyId, status: 'published' },
       { runValidators: true },
     );
 
@@ -167,7 +167,7 @@ const unassignModuleFromTeam = async (moduleId: string) => {
 
   const result = await Module.findByIdAndUpdate(
     moduleId,
-    { teamId: null },
+    { teamId: null, companyId: null },
     { new: true, runValidators: true },
   ).populate('createdBy', 'firstName lastName email');
 
@@ -183,16 +183,19 @@ const getModulesByTeam = async (teamId: string) => {
   return modules;
 };
 
-// ── Get Modules by Company (via teams) ──
+// ── Get Modules by Company (via teams or direct companyId) ──
 const getModulesByCompany = async (companyId: string) => {
   // Find all team IDs belonging to this company
   const { Team } = await import('../Team/team.model');
   const teams = await Team.find({ companyId }).select('_id').lean();
   const teamIds = teams.map((t) => t._id);
 
-  const modules = await Module.find({ teamId: { $in: teamIds }, isDeleted: false })
+  const modules = await Module.find({
+    $or: [{ companyId }, { teamId: { $in: teamIds } }],
+    isDeleted: false,
+  })
     .populate('createdBy', 'firstName lastName email')
-    .populate('teamId', 'name')
+    .populate('teamId', 'name companyId')
     .sort({ createdAt: -1 });
 
   return modules;

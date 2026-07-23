@@ -12,6 +12,7 @@ import { CompanyRoutes } from '../modules/Company/company.routes';
 import { TeamRoutes } from '../modules/Team/team.routes';
 import { ModuleRoutes } from '../modules/Module/module.routes';
 import { DashboardRoutes } from '../modules/Dashboard/dashboard.routes';
+import { UserProgressRoutes } from '../modules/UserProgress/userProgress.routes';
 
 
 const router = Router();
@@ -52,6 +53,7 @@ const moduleRoutes = [
   { path: '/team', route: TeamRoutes },
   { path: '/module', route: ModuleRoutes },
   { path: '/dashboard', route: DashboardRoutes },
+  { path: '/user-progress', route: UserProgressRoutes },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));

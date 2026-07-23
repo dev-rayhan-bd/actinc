@@ -79,6 +79,7 @@ export interface IModule {
   status: TModuleStatus;
   createdBy: Types.ObjectId;
   teamId?: Types.ObjectId;
+  companyId?: Types.ObjectId;
   isDeleted: boolean;
 }
 
