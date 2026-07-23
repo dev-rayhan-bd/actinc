@@ -44,6 +44,8 @@ export interface IOrderingQuestion extends IQuestionBase {
 export interface IChatScenarioQuestion extends IQuestionBase {
   type: 'Chat Scenario';
   messages: { sender: string; text: string }[];
+  options?: string[];
+  correctAnswer?: string;
 }
 
 export interface IVideoQuestion extends IQuestionBase {

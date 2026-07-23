@@ -50,6 +50,8 @@ const chatScenarioQuestionSchema = z.object({
       }),
     )
     .min(1, 'Chat Scenario must have at least 1 message'),
+  options: z.array(z.string()).optional(),
+  correctAnswer: z.string().optional(),
 });
 
 const videoQuestionSchema = z.object({

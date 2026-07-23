@@ -224,8 +224,19 @@ const submitAnswerInDB = async (
       isCorrect = true;
       qScore = 100;
     }
+  } else if (question.type === 'Chat Scenario') {
+    if (
+      question.correctAnswer &&
+      String(answer).trim().toLowerCase() === String(question.correctAnswer).trim().toLowerCase()
+    ) {
+      isCorrect = true;
+      qScore = 100;
+    } else if (!question.correctAnswer) {
+      isCorrect = true;
+      qScore = 100;
+    }
   } else {
-    // Chat Scenario, Rating, Video, Free Input
+    // Rating, Video, Free Input
     isCorrect = true;
     qScore = 100;
   }
