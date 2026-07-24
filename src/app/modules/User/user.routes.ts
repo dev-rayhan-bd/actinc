@@ -18,20 +18,20 @@ router.get(
 // ── Authenticated User Routes ──
 router.get(
   '/me',
-  auth('user', 'admin', 'superAdmin', 'company'),
+  auth('user', 'admin', 'superAdmin', 'company', 'guest'),
   UserControllers.getMe
 );
 
 router.patch(
   '/update-me',
-  auth('user', 'admin', 'superAdmin', 'company'),
+  auth('user', 'admin', 'superAdmin', 'company', 'guest'),
   upload.single('image') as any,
   UserControllers.updateProfile
 );
 
 router.patch(
   '/setup-profile',
-  auth('user', 'admin', 'superAdmin', 'company'),
+  auth('user', 'admin', 'superAdmin', 'company', 'guest'),
   upload.single('image') as any,
   UserControllers.setupProfile
 );

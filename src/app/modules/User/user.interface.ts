@@ -1,6 +1,6 @@
 import { Model, Types } from 'mongoose';
 
-export type TUserRole = 'user' | 'admin' | 'superAdmin' | 'company';
+export type TUserRole = 'user' | 'admin' | 'superAdmin' | 'company' | 'guest';
 
 export type TAuthType = 'email' | 'employeeId' | 'anonymous' | 'qr';
 

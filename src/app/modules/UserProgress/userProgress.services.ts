@@ -1,4 +1,5 @@
 import httpStatus from 'http-status';
+import { Types } from 'mongoose';
 import AppError from '../../errors/AppError';
 import { UserProgress } from './userProgress.model';
 import { Module } from '../Module/module.model';
@@ -6,27 +7,71 @@ import { User } from '../User/user.model';
 import { Team } from '../Team/team.model';
 
 // ── Get My Learning Path (User Dashboard & Assigned Modules) ──
-const getMyLearningPathFromDB = async (userId: string, queryStatus?: string) => {
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+const getMyLearningPathFromDB = async (
+  userId?: string,
+  queryStatus?: string,
+  guestCompanyId?: string,
+  guestTeamId?: string,
+) => {
+  let targetCompanyId = guestCompanyId;
+  let targetTeamId = guestTeamId;
+  let userInfo: any = null;
+
+  if (userId) {
+    const user = await User.findById(userId);
+    if (user) {
+      targetCompanyId = user.companyId ? user.companyId.toString() : targetCompanyId;
+      targetTeamId = user.teamId ? user.teamId.toString() : targetTeamId;
+      userInfo = {
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        companyId: user.companyId,
+        teamId: user.teamId,
+      };
+    }
   }
 
-  // Determine status filter: default to 'published' for end users, or allow 'all' / 'draft'
+  if (!userInfo) {
+    userInfo = {
+      _id: 'guest',
+      firstName: 'Guest',
+      lastName: 'User',
+      email: 'guest@actinc.com',
+      companyId: targetCompanyId,
+      teamId: targetTeamId,
+    };
+  }
+
+  // Determine status filter: default to both published & draft so assigned modules always show
   const statusFilter =
-    queryStatus === 'all'
-      ? { $in: ['published', 'draft'] }
-      : queryStatus || 'published';
+    queryStatus === 'published'
+      ? 'published'
+      : { $in: ['published', 'draft'] };
 
   // Find modules assigned to user's team or company
   const filterQuery: any = { status: statusFilter, isDeleted: false };
   const orConditions: any[] = [];
 
-  if (user.teamId) {
-    orConditions.push({ teamId: user.teamId });
+  if (targetTeamId) {
+    orConditions.push({ teamId: targetTeamId });
+    if (Types.ObjectId.isValid(targetTeamId)) {
+      orConditions.push({ teamId: new Types.ObjectId(targetTeamId) });
+    }
   }
-  if (user.companyId) {
-    orConditions.push({ companyId: user.companyId });
+  if (targetCompanyId) {
+    orConditions.push({ companyId: targetCompanyId });
+    if (Types.ObjectId.isValid(targetCompanyId)) {
+      orConditions.push({ companyId: new Types.ObjectId(targetCompanyId) });
+    }
+
+    // Also include modules assigned to any team under this company
+    const companyTeams = await Team.find({ companyId: targetCompanyId }).select('_id').lean();
+    if (companyTeams.length > 0) {
+      const companyTeamIds = companyTeams.map((t) => t._id);
+      orConditions.push({ teamId: { $in: companyTeamIds } });
+    }
   }
 
   if (orConditions.length > 0) {
@@ -42,14 +87,7 @@ const getMyLearningPathFromDB = async (userId: string, queryStatus?: string) => 
         overallProgressPercentage: 0,
         averageScore: 0,
       },
-      user: {
-        _id: user._id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        email: user.email,
-        companyId: user.companyId,
-        teamId: user.teamId,
-      },
+      user: userInfo,
       modules: [],
     };
   }
@@ -65,20 +103,20 @@ const getMyLearningPathFromDB = async (userId: string, queryStatus?: string) => 
 
   const modulesWithProgress = await Promise.all(
     assignedModules.map(async (module) => {
-      let progress = await UserProgress.findOne({ userId, moduleId: module._id });
+      let progress: any = null;
+
+      if (userId && userId !== 'guest') {
+        progress = await UserProgress.findOne({ userId, moduleId: module._id });
+      }
 
       if (!progress) {
-        progress = await UserProgress.create({
-          userId,
-          companyId: user.companyId || module.companyId,
-          teamId: user.teamId || module.teamId,
-          moduleId: module._id,
+        progress = {
           status: 'not_started',
           progressPercentage: 0,
           totalQuestions: module.questions ? module.questions.length : 0,
           completedQuestions: 0,
-          answers: [],
-        });
+          score: 0,
+        };
       }
 
       if (progress.status === 'completed') {
@@ -128,43 +166,41 @@ const getMyLearningPathFromDB = async (userId: string, queryStatus?: string) => 
       overallProgressPercentage,
       averageScore,
     },
-    user: {
-      _id: user._id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      companyId: user.companyId,
-      teamId: user.teamId,
-    },
+    user: userInfo,
     modules: modulesWithProgress,
   };
 };
 
 // ── Get Single Module for User ──
-const getModuleForUserFromDB = async (userId: string, moduleId: string) => {
+const getModuleForUserFromDB = async (
+  userId?: string,
+  moduleId?: string,
+  guestCompanyId?: string,
+  guestTeamId?: string,
+) => {
   const module = await Module.findOne({ _id: moduleId, status: 'published', isDeleted: false });
   if (!module) {
     throw new AppError(httpStatus.NOT_FOUND, 'Module not found or not published');
   }
 
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  let progress: any = null;
+
+  if (userId && userId !== 'guest') {
+    progress = await UserProgress.findOne({ userId, moduleId });
   }
 
-  let progress = await UserProgress.findOne({ userId, moduleId });
   if (!progress) {
-    progress = await UserProgress.create({
-      userId,
-      companyId: user.companyId || module.companyId,
-      teamId: user.teamId || module.teamId,
+    progress = {
+      userId: userId || 'guest',
+      companyId: guestCompanyId || module.companyId,
+      teamId: guestTeamId || module.teamId,
       moduleId: module._id,
       status: 'not_started',
       progressPercentage: 0,
       totalQuestions: module.questions ? module.questions.length : 0,
       completedQuestions: 0,
       answers: [],
-    });
+    };
   }
 
   return {
@@ -175,8 +211,10 @@ const getModuleForUserFromDB = async (userId: string, moduleId: string) => {
 
 // ── Submit Answer for a Question ──
 const submitAnswerInDB = async (
-  userId: string,
+  userId: string | undefined,
   payload: { moduleId: string; questionId: string; answer: any },
+  guestCompanyId?: string,
+  guestTeamId?: string,
 ) => {
   const { moduleId, questionId, answer } = payload;
 
@@ -188,11 +226,6 @@ const submitAnswerInDB = async (
   const question: any = module.questions.find((q: any) => q.id === questionId);
   if (!question) {
     throw new AppError(httpStatus.NOT_FOUND, 'Question not found in module');
-  }
-
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
   }
 
   // Check correctness & marking
@@ -241,124 +274,157 @@ const submitAnswerInDB = async (
     qScore = 100;
   }
 
-  // Find or create UserProgress
-  let progress = await UserProgress.findOne({ userId, moduleId });
-  if (!progress) {
-    progress = new UserProgress({
-      userId,
-      companyId: user.companyId || module.companyId,
-      teamId: user.teamId || module.teamId,
-      moduleId,
-      status: 'in_progress',
-      startedAt: new Date(),
-      answers: [],
+  let progress: any = null;
+
+  if (userId && userId !== 'guest') {
+    progress = await UserProgress.findOne({ userId, moduleId });
+    if (!progress) {
+      const user = await User.findById(userId);
+      progress = new UserProgress({
+        userId,
+        companyId: user?.companyId || module.companyId,
+        teamId: user?.teamId || module.teamId,
+        moduleId,
+        status: 'in_progress',
+        startedAt: new Date(),
+        answers: [],
+      });
+    }
+
+    if (!progress.answers) {
+      progress.answers = [];
+    }
+
+    if (progress.status === 'not_started') {
+      progress.status = 'in_progress';
+      progress.startedAt = progress.startedAt || new Date();
+    }
+    progress.lastAttemptAt = new Date();
+
+    // Update or push answer
+    const existingAnswerIndex = progress.answers.findIndex((a: any) => a.questionId === questionId);
+    const answerObj = {
+      questionId,
+      answer,
+      isCorrect,
+      score: qScore,
+      answeredAt: new Date(),
+    };
+
+    if (existingAnswerIndex > -1) {
+      progress.answers[existingAnswerIndex] = answerObj;
+    } else {
+      progress.answers.push(answerObj);
+    }
+
+    // Recalculate progress stats
+    const totalQuestions = module.questions.length;
+    const completedQuestions = progress.answers.length;
+    const progressPercentage =
+      totalQuestions > 0 ? Math.min(100, Math.round((completedQuestions / totalQuestions) * 100)) : 100;
+
+    // Calculate score for scored questions
+    const scoredAnswers = progress.answers.filter((a: any) => {
+      const q: any = module.questions.find((qItem: any) => qItem.id === a.questionId);
+      return q ? q.isScored !== false : true;
     });
+
+    const avgScore =
+      scoredAnswers.length > 0
+        ? Math.round(
+            scoredAnswers.reduce((sum: number, a: any) => sum + (a.score || 0), 0) / scoredAnswers.length,
+          )
+        : 100;
+
+    progress.totalQuestions = totalQuestions;
+    progress.completedQuestions = completedQuestions;
+    progress.progressPercentage = progressPercentage;
+    progress.score = avgScore;
+
+    if (completedQuestions >= totalQuestions) {
+      progress.status = 'completed';
+      progress.completedAt = new Date();
+    }
+
+    await progress.save();
+
+    return {
+      questionId,
+      isCorrect,
+      score: qScore,
+      correctAnswer: question.correctAnswer || question.correctDirection,
+      explanation: question.explanation || '',
+      completedQuestions,
+      totalQuestions,
+      progressPercentage,
+      moduleScore: avgScore,
+      moduleStatus: progress.status,
+    };
   }
 
-  if (!progress.answers) {
-    progress.answers = [];
-  }
-
-  if (progress.status === 'not_started') {
-    progress.status = 'in_progress';
-    progress.startedAt = progress.startedAt || new Date();
-  }
-  progress.lastAttemptAt = new Date();
-
-  // Update or push answer
-  const existingAnswerIndex = progress.answers.findIndex((a) => a.questionId === questionId);
-  const answerObj = {
-    questionId,
-    answer,
-    isCorrect,
-    score: qScore,
-    answeredAt: new Date(),
-  };
-
-  if (existingAnswerIndex > -1) {
-    progress.answers[existingAnswerIndex] = answerObj;
-  } else {
-    progress.answers.push(answerObj);
-  }
-
-  // Recalculate progress stats
-  const totalQuestions = module.questions.length;
-  const completedQuestions = progress.answers.length;
-  const progressPercentage =
-    totalQuestions > 0 ? Math.min(100, Math.round((completedQuestions / totalQuestions) * 100)) : 100;
-
-  // Calculate score for scored questions
-  const scoredAnswers = progress.answers.filter((a) => {
-    const q: any = module.questions.find((qItem: any) => qItem.id === a.questionId);
-    return q ? q.isScored !== false : true;
-  });
-
-  const avgScore =
-    scoredAnswers.length > 0
-      ? Math.round(
-          scoredAnswers.reduce((sum, a) => sum + (a.score || 0), 0) / scoredAnswers.length,
-        )
-      : 100;
-
-  progress.totalQuestions = totalQuestions;
-  progress.completedQuestions = completedQuestions;
-  progress.progressPercentage = progressPercentage;
-  progress.score = avgScore;
-
-  if (completedQuestions >= totalQuestions) {
-    progress.status = 'completed';
-    progress.completedAt = new Date();
-  }
-
-  await progress.save();
-
+  // Transient response for anonymous guest users
   return {
     questionId,
     isCorrect,
     score: qScore,
     correctAnswer: question.correctAnswer || question.correctDirection,
     explanation: question.explanation || '',
-    completedQuestions,
-    totalQuestions,
-    progressPercentage,
-    moduleScore: avgScore,
-    moduleStatus: progress.status,
+    completedQuestions: 1,
+    totalQuestions: module.questions.length,
+    progressPercentage: Math.round((1 / module.questions.length) * 100),
+    moduleScore: qScore,
+    moduleStatus: 'in_progress',
   };
 };
 
 // ── Complete Module ──
-const completeModuleInDB = async (userId: string, moduleId: string) => {
+const completeModuleInDB = async (
+  userId?: string,
+  moduleId?: string,
+  guestCompanyId?: string,
+  guestTeamId?: string,
+) => {
   const module = await Module.findOne({ _id: moduleId, isDeleted: false });
   if (!module) {
     throw new AppError(httpStatus.NOT_FOUND, 'Module not found');
   }
 
-  const user = await User.findById(userId);
-  if (!user) {
-    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  if (userId && userId !== 'guest') {
+    const user = await User.findById(userId);
+    let progress = await UserProgress.findOne({ userId, moduleId });
+    if (!progress) {
+      progress = new UserProgress({
+        userId,
+        companyId: user?.companyId || module.companyId,
+        teamId: user?.teamId || module.teamId,
+        moduleId,
+        answers: [],
+      });
+    }
+
+    progress.status = 'completed';
+    progress.progressPercentage = 100;
+    progress.completedQuestions = module.questions.length;
+    progress.totalQuestions = module.questions.length;
+    progress.completedAt = new Date();
+    if (!progress.score) progress.score = 100;
+
+    await progress.save();
+    return progress;
   }
 
-  let progress = await UserProgress.findOne({ userId, moduleId });
-  if (!progress) {
-    progress = new UserProgress({
-      userId,
-      companyId: user.companyId || module.companyId,
-      teamId: user.teamId || module.teamId,
-      moduleId,
-      answers: [],
-    });
-  }
-
-  progress.status = 'completed';
-  progress.progressPercentage = 100;
-  progress.completedQuestions = module.questions.length;
-  progress.totalQuestions = module.questions.length;
-  progress.completedAt = new Date();
-  if (!progress.score) progress.score = 100;
-
-  await progress.save();
-
-  return progress;
+  return {
+    userId: 'guest',
+    companyId: guestCompanyId || module.companyId,
+    teamId: guestTeamId || module.teamId,
+    moduleId: module._id,
+    status: 'completed',
+    progressPercentage: 100,
+    completedQuestions: module.questions.length,
+    totalQuestions: module.questions.length,
+    completedAt: new Date(),
+    score: 100,
+  };
 };
 
 // ── Team Performance Stats ──

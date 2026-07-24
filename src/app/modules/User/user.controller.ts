@@ -17,7 +17,13 @@ const updateProfile = catchAsync(async (req, res) => {
   const data = req.body.data ? JSON.parse(req.body.data) : req.body;
   const payload = { ...data, image: imageUrl };
 
-  const result = await UserServices.updateProfileInDB(req.user.userId!, payload);
+  const result = await UserServices.updateProfileInDB(
+    req.user.userId,
+    payload,
+    req.user.role,
+    req.user.companyId,
+    req.user.teamId,
+  );
   sendResponse(res, { statusCode: 200, success: true, message: 'Profile updated', data: result });
 });
 
@@ -25,17 +31,22 @@ const setupProfile = catchAsync(async (req, res) => {
   let imageUrl;
   if (req.file) imageUrl = await uploadImage(req);
 
-  const data = JSON.parse(req.body.data);
+  const data = typeof req.body.data === 'string' ? JSON.parse(req.body.data) : req.body;
   const payload = { ...data, image: imageUrl };
 
-  const result = await UserServices.updateProfileInDB(req.user.userId!, payload);
+  const result = await UserServices.updateProfileInDB(
+    req.user.userId,
+    payload,
+    req.user.role,
+    req.user.companyId,
+    req.user.teamId,
+  );
   sendResponse(res, { statusCode: 200, success: true, message: 'Profile set up successfully', data: result });
 });
 
 const getMe = catchAsync(async (req, res) => {
-  const { userId } = req.user; 
-    const role = req.user.role;
-  const result = await UserServices.getMeFromDB(userId!, role);
+  const { userId, role, companyId, teamId } = req.user; 
+  const result = await UserServices.getMeFromDB(userId, role, companyId, teamId);
 
   sendResponse(res, {
     statusCode: 200,

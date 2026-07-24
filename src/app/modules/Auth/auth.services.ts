@@ -1,5 +1,6 @@
 import httpStatus from 'http-status';
 import bcrypt from 'bcrypt';
+import crypto from 'node:crypto';
 import { Types } from 'mongoose';
 import AppError from '../../errors/AppError';
 import { User } from '../User/user.model';
@@ -270,8 +271,28 @@ const guestLogin = async (payload: TGuestLogin) => {
 //  Scans QR code containing encrypted token with companyId, teamId, and optional user data
 //  If user exists → login; if not → register new user
 // ─────────────────────────────────────────────
-const qrCodeLogin = async (payload: { qrToken: string }) => {
-  const { qrToken } = payload;
+const qrCodeLogin = async (payload: {
+  qrToken: string;
+  guestId?: string;
+  userId?: string;
+  authToken?: string;
+  guestIdHeader?: string;
+  cookieGuestId?: string;
+  cookieRefreshToken?: string;
+  clientIp?: string;
+  userAgent?: string;
+}) => {
+  const {
+    qrToken,
+    guestId: clientGuestId,
+    userId: clientUserId,
+    authToken,
+    guestIdHeader,
+    cookieGuestId,
+    cookieRefreshToken,
+    clientIp,
+    userAgent,
+  } = payload;
 
   // Decode and verify QR token
   let decoded: any;
@@ -302,8 +323,115 @@ const qrCodeLogin = async (payload: { qrToken: string }) => {
     throw new AppError(httpStatus.UNAUTHORIZED, 'QR code is no longer valid. Please scan a new one.');
   }
 
-  // ── Auto Register new user (zero input from user) ──
-  const guestId = `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  let existingUser: any = null;
+
+  // 1. Check via Cookies (guestId cookie or refreshToken cookie sent automatically by browser)
+  const targetCookieGuestId = cookieGuestId || clientGuestId || guestIdHeader;
+  if (targetCookieGuestId) {
+    existingUser = await User.findOne({ guestId: targetCookieGuestId, isDeleted: false });
+  }
+
+  if (!existingUser && cookieRefreshToken) {
+    try {
+      const decodedRef: any = verifyToken(cookieRefreshToken, config.jwt_refresh_secret!);
+      if (decodedRef?.userId) {
+        existingUser = await User.findById(decodedRef.userId);
+      }
+    } catch (e) {
+      // Ignored
+    }
+  }
+
+  // 2. Check via Bearer Auth Token in header
+  if (!existingUser && authToken) {
+    try {
+      const decodedToken: any = verifyToken(authToken, config.jwt_access_secret!);
+      if (decodedToken?.userId) {
+        existingUser = await User.findById(decodedToken.userId);
+      }
+    } catch (err) {
+      // Ignored if expired/invalid token
+    }
+  }
+
+  // 3. Check via userId (body)
+  if (!existingUser && clientUserId) {
+    existingUser = await User.findById(clientUserId);
+  }
+
+  // 4. Device Fingerprint fallback (IP + User-Agent + Company + Team)
+  if (!existingUser && clientIp && userAgent) {
+    const rawFingerprint = `${clientIp}_${userAgent}_${companyId}_${teamId}`;
+    const deviceFingerprint = crypto.createHash('md5').update(rawFingerprint).digest('hex');
+    const fpGuestId = `qr_fp_${deviceFingerprint.slice(0, 16)}`;
+
+    existingUser = await User.findOne({ guestId: fpGuestId, isDeleted: false });
+    if (!existingUser) {
+      // Create user with this deterministic fingerprint guestId so future scans from same device log in
+      const autoName = `User_${deviceFingerprint.slice(-6)}`;
+      const autoEmail = `${fpGuestId}@qr.local`;
+
+      existingUser = await User.create({
+        firstName: autoName,
+        lastName: deviceFingerprint.slice(-6),
+        fullName: autoName,
+        email: autoEmail,
+        guestId: fpGuestId,
+        role: 'user',
+        authType: 'qr',
+        companyId: new Types.ObjectId(companyId),
+        teamId: new Types.ObjectId(teamId),
+        status: 'active',
+        isOtpVerified: true,
+        lastActiveAt: new Date(),
+      });
+
+      console.log(`✅ Auto-registered new QR user via Device Fingerprint: ${autoName}`);
+
+      const jwtPayload = {
+        userId: existingUser._id.toString(),
+        role: 'user',
+        companyId,
+        teamId,
+        authType: 'qr' as const,
+      };
+
+      return {
+        accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in!),
+        refreshToken: createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in!),
+        user: existingUser,
+        isNewUser: true,
+      };
+    }
+  }
+
+  // ── Existing User Found -> Perform Login ──
+  if (existingUser && !existingUser.isDeleted) {
+    existingUser.lastActiveAt = new Date();
+    existingUser.companyId = new Types.ObjectId(companyId);
+    existingUser.teamId = new Types.ObjectId(teamId);
+    await existingUser.save();
+
+    console.log(`🔑 Existing QR user logged in: ${existingUser.firstName} (${existingUser._id})`);
+
+    const jwtPayload = {
+      userId: existingUser._id.toString(),
+      role: 'user',
+      companyId,
+      teamId,
+      authType: 'qr' as const,
+    };
+
+    return {
+      accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in!),
+      refreshToken: createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in!),
+      user: existingUser,
+      isNewUser: false,
+    };
+  }
+
+  // ── First Scan: Auto Register new user (zero input required) ──
+  const guestId = clientGuestId || `qr_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const autoName = `User_${guestId.slice(-6)}`;
   const autoEmail = `${guestId}@qr.local`; // Unique email to avoid duplicate key on email index
 
@@ -322,7 +450,7 @@ const qrCodeLogin = async (payload: { qrToken: string }) => {
     lastActiveAt: new Date(),
   });
 
-  console.log(`✅ Auto-registered via QR code: ${autoName} in company ${company.firstName}`);
+  console.log(`✅ Auto-registered new QR user: ${autoName} in company ${company.firstName}`);
 
   const jwtPayload = { userId: user._id.toString(), role: 'user', companyId, teamId, authType: 'qr' as const };
   return {

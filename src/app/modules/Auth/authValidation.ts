@@ -47,6 +47,7 @@ export const AuthValidation = {
   qrCodeLoginSchema: z.object({
     body: z.object({
       qrToken: z.string({ required_error: 'QR token is required' }),
+      guestId: z.string().optional(),
     }),
   }),
 

@@ -6,8 +6,10 @@ import { UserProgressServices } from './userProgress.services';
 // ── Get My Learning Path (User Dashboard & Assigned Modules) ──
 const getMyLearningPath = catchAsync(async (req, res) => {
   const result = await UserProgressServices.getMyLearningPathFromDB(
-    req.user.userId!,
+    req.user.userId,
     req.query.status as string,
+    req.user.companyId,
+    req.user.teamId,
   );
 
   sendResponse(res, {
@@ -21,8 +23,10 @@ const getMyLearningPath = catchAsync(async (req, res) => {
 // ── Get Single Module for User ──
 const getModuleForUser = catchAsync(async (req, res) => {
   const result = await UserProgressServices.getModuleForUserFromDB(
-    req.user.userId!,
+    req.user.userId,
     req.params.moduleId as string,
+    req.user.companyId,
+    req.user.teamId,
   );
 
   sendResponse(res, {
@@ -35,7 +39,12 @@ const getModuleForUser = catchAsync(async (req, res) => {
 
 // ── Submit Answer for a Question ──
 const submitAnswer = catchAsync(async (req, res) => {
-  const result = await UserProgressServices.submitAnswerInDB(req.user.userId!, req.body);
+  const result = await UserProgressServices.submitAnswerInDB(
+    req.user.userId,
+    req.body,
+    req.user.companyId,
+    req.user.teamId,
+  );
 
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -48,8 +57,10 @@ const submitAnswer = catchAsync(async (req, res) => {
 // ── Complete Module ──
 const completeModule = catchAsync(async (req, res) => {
   const result = await UserProgressServices.completeModuleInDB(
-    req.user.userId!,
+    req.user.userId,
     req.params.moduleId as string,
+    req.user.companyId,
+    req.user.teamId,
   );
 
   sendResponse(res, {

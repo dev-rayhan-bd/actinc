@@ -3,6 +3,7 @@ export const USER_ROLE = {
   admin: 'admin',
   company: 'company',
   user: 'user',
+  guest: 'guest',
 } as const;
 
 export const AUTH_TYPE = {

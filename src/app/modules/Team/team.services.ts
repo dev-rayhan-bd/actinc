@@ -1,4 +1,5 @@
 import httpStatus from 'http-status';
+import bcrypt from 'bcrypt';
 import AppError from '../../errors/AppError';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Team } from './team.model';
@@ -44,6 +45,12 @@ const updateTeamInDB = async (
       throw new AppError(httpStatus.FORBIDDEN, 'You can only update your own teams');
     }
   }
+
+  // If passcode is updated, hash it before saving
+  if (payload.passcode) {
+    payload.passcode = await bcrypt.hash(payload.passcode, 10);
+  }
+
   const result = await Team.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,

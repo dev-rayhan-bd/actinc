@@ -7,32 +7,32 @@ import { UserProgressValidation } from './userProgress.validation';
 
 const router = express.Router();
 
-// ── User: Learning Path & Dashboard ──
+// ── User / Guest: Learning Path & Dashboard ──
 router.get(
   '/my-learning-path',
-  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.guest),
   UserProgressControllers.getMyLearningPath,
 );
 
-// ── User: Get Single Module Details & Questions ──
+// ── User / Guest: Get Single Module Details & Questions ──
 router.get(
   '/module/:moduleId',
-  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.guest),
   UserProgressControllers.getModuleForUser,
 );
 
-// ── User: Submit Answer for Question ──
+// ── User / Guest: Submit Answer for Question ──
 router.post(
   '/submit-answer',
-  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.guest),
   validateRequest(UserProgressValidation.submitAnswerSchema),
   UserProgressControllers.submitAnswer,
 );
 
-// ── User: Complete Module ──
+// ── User / Guest: Complete Module ──
 router.post(
   '/complete/:moduleId',
-  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.guest),
   validateRequest(UserProgressValidation.completeModuleSchema),
   UserProgressControllers.completeModule,
 );
@@ -40,24 +40,24 @@ router.post(
 // ── Team Performance Stats ──
 router.get(
   '/team-performance',
-  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.guest),
   UserProgressControllers.getTeamPerformance,
 );
 router.get(
   '/team-performance/:teamId',
-  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.guest),
   UserProgressControllers.getTeamPerformance,
 );
 
 // ── Company Performance Stats ──
 router.get(
   '/company-performance',
-  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.guest),
   UserProgressControllers.getCompanyPerformance,
 );
 router.get(
   '/company-performance/:companyId',
-  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.user, USER_ROLE.company, USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.guest),
   UserProgressControllers.getCompanyPerformance,
 );
 

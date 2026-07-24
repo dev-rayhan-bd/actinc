@@ -1,4 +1,5 @@
 import httpStatus from 'http-status'
+import { Types } from 'mongoose';
 import AppError from '../../errors/AppError';
 import { Admin } from '../Admin/admin.model';
 import { User } from './user.model';
@@ -17,10 +18,13 @@ const getAllUsersFromDB = async (query: Record<string, unknown>) => {
   return { meta, result };
 };
 
-const updateProfileInDB = async (userId: string, payload: any) => {
-  const user = await User.findById(userId);
-  if (!user) throw new AppError(404, 'User not found');
-
+const updateProfileInDB = async (
+  userId?: string,
+  payload: any = {},
+  role?: string,
+  companyId?: string,
+  teamId?: string,
+) => {
   // Strip restricted fields
   delete payload.role;
   delete payload.password;
@@ -31,7 +35,38 @@ const updateProfileInDB = async (userId: string, payload: any) => {
 
   payload.lastActiveAt = new Date();
 
-  return await User.findByIdAndUpdate(userId, payload, { new: true, runValidators: true });
+  if (userId) {
+    const user = await User.findById(userId);
+    if (!user) throw new AppError(404, 'User not found');
+    return await User.findByIdAndUpdate(userId, payload, { new: true, runValidators: true });
+  }
+
+  // Handle guest users who don't have a DB record yet
+  if (role === 'guest') {
+    const guestId = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const autoEmail = `${guestId}@guest.local`;
+
+    const newGuestUser = await User.create({
+      firstName: payload.firstName || 'Guest',
+      lastName: payload.lastName || 'User',
+      fullName: payload.fullName || `${payload.firstName || 'Guest'} ${payload.lastName || 'User'}`.trim(),
+      image: payload.image || '',
+      phone: payload.phone || '',
+      email: autoEmail,
+      guestId,
+      role: 'guest',
+      authType: 'anonymous',
+      companyId: companyId ? new Types.ObjectId(companyId) : undefined,
+      teamId: teamId ? new Types.ObjectId(teamId) : undefined,
+      status: 'active',
+      isOtpVerified: true,
+      lastActiveAt: new Date(),
+    });
+
+    return newGuestUser;
+  }
+
+  throw new AppError(400, 'User ID is required to update profile');
 };
 
 const defaultBranding = {
@@ -44,22 +79,62 @@ const defaultBranding = {
   videoUrl: '',
 };
 
-const getMeFromDB = async (userId: string, role: string) => {
+const getMeFromDB = async (
+  userId?: string,
+  role?: string,
+  companyId?: string,
+  teamId?: string,
+) => {
   let result: any = null;
   if (role === 'admin' || role === 'superAdmin') {
     result = await Admin.findById(userId);
     return result;
   }
 
-  result = await User.findById(userId);
+  if (userId) {
+    result = await User.findById(userId);
+  }
+
+  // Handle guest users who don't have a DB User record
+  if (!result && role === 'guest') {
+    const guestObj: any = {
+      _id: 'guest',
+      firstName: 'Guest',
+      lastName: 'User',
+      fullName: 'Guest User',
+      role: 'guest',
+      companyId: companyId || null,
+      teamId: teamId || null,
+      authType: 'anonymous',
+    };
+
+    if (companyId) {
+      const company = await User.findById(companyId).select('branding');
+      const compBranding: any = company?.branding || {};
+      guestObj.branding = {
+        primaryColor: compBranding.primaryColor || defaultBranding.primaryColor,
+        secondaryColor: compBranding.secondaryColor || defaultBranding.secondaryColor,
+        videoTitle: compBranding.videoTitle || defaultBranding.videoTitle,
+        videoDescription: compBranding.videoDescription || defaultBranding.videoDescription,
+        presenterName: compBranding.presenterName || defaultBranding.presenterName,
+        presenterDesignation: compBranding.presenterDesignation || defaultBranding.presenterDesignation,
+        videoUrl: compBranding.videoUrl || defaultBranding.videoUrl,
+      };
+    } else {
+      guestObj.branding = defaultBranding;
+    }
+
+    return guestObj;
+  }
+
   if (!result) {
     throw new AppError(httpStatus.NOT_FOUND, 'User profile not found!');
   }
 
   const userObj = result.toObject ? result.toObject() : { ...result };
 
-  // If regular user assigned to a company, fetch that company's branding
-  if (role === 'user' && result.companyId) {
+  // If regular user or guest assigned to a company, fetch that company's branding
+  if ((role === 'user' || role === 'guest') && result.companyId) {
     const company = await User.findById(result.companyId).select('branding');
     const compBranding: any = company?.branding || {};
 
