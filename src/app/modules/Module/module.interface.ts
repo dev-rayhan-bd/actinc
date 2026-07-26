@@ -8,7 +8,8 @@ export type TQuestionType =
   | 'Chat Scenario'
   | 'Video'
   | 'Free Input'
-  | 'Rating';
+  | 'Rating'
+  | 'Information';
 
 export type TModuleStatus = 'draft' | 'published';
 
@@ -62,6 +63,10 @@ export interface IFreeInputQuestion extends IQuestionBase {
   type: 'Free Input';
 }
 
+export interface IInformationQuestion extends IQuestionBase {
+  type: 'Information';
+}
+
 // ── Union of all question types ──
 export type TQuestion =
   | IMCQQuestion
@@ -70,7 +75,8 @@ export type TQuestion =
   | IChatScenarioQuestion
   | IVideoQuestion
   | IRatingQuestion
-  | IFreeInputQuestion;
+  | IFreeInputQuestion
+  | IInformationQuestion;
 
 // ── Module Document ──
 export interface IModule {

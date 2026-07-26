@@ -41,7 +41,11 @@ const getModuleByIdFromDB = async (id: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Module not found');
   }
 
-  return result;
+  const moduleObj = result.toObject();
+  const scoredQuestions = moduleObj.questions.filter((q: any) => q.isScored !== false);
+  const score = scoredQuestions.length * 100;
+
+  return { ...moduleObj, score };
 };
 
 // ── Update Module ──

@@ -15,6 +15,7 @@ const questionSchema = new Schema(
         'Video',
         'Free Input',
         'Rating',
+        'Information',
       ],
       required: true,
     },

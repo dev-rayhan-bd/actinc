@@ -83,6 +83,15 @@ const freeInputQuestionSchema = z.object({
   isScored: z.boolean(),
 });
 
+const informationQuestionSchema = z.object({
+  id: z.string(),
+  type: z.literal('Information'),
+  content: z.string().min(1, 'Question content is required'),
+  image: z.string().optional(),
+  explanation: z.string().optional(),
+  isScored: z.boolean(),
+});
+
 // ── Discriminated Union for all question types ──
 const questionSchema = z.discriminatedUnion('type', [
   mcqQuestionSchema,
@@ -92,6 +101,7 @@ const questionSchema = z.discriminatedUnion('type', [
   videoQuestionSchema,
   ratingQuestionSchema,
   freeInputQuestionSchema,
+  informationQuestionSchema,
 ]);
 
 // ── Create Module ──
