@@ -151,7 +151,7 @@ const updateBrandingInDB = async (id: string, payload: Record<string, any>) => {
   }
 
   const allowedFields = [
-    'primaryColor', 'secondaryColor', 'videoTitle',
+    'logo', 'primaryColor', 'secondaryColor', 'videoTitle',
     'videoDescription', 'presenterName', 'presenterDesignation', 'videoUrl',
   ];
   for (const field of allowedFields) {

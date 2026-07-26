@@ -9,6 +9,7 @@ export type TCompanyStatus = 'active' | 'inactive' | 'suspended';
 
 /** Branding fields (used by role: 'company' users) */
 export interface TCompanyBranding {
+  logo?: string;
   primaryColor: string;
   secondaryColor: string;
   videoTitle: string;

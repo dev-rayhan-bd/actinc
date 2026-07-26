@@ -5,6 +5,7 @@ import { IUserMethods, TUser, TCompanyBranding, UserModel } from "./user.interfa
 
 const brandingSubSchema = new Schema<TCompanyBranding>(
   {
+    logo: { type: String, default: '' },
     primaryColor: { type: String, default: '#8ACDDE' },
     secondaryColor: { type: String, default: '#E9308F' },
     videoTitle: { type: String, default: '' },
