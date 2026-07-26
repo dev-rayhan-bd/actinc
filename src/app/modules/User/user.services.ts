@@ -70,6 +70,7 @@ const updateProfileInDB = async (
 };
 
 const defaultBranding = {
+  logo: '',
   primaryColor: '#8ACDDE',
   secondaryColor: '#E9308F',
   videoTitle: '',
@@ -112,6 +113,7 @@ const getMeFromDB = async (
       const company = await User.findById(companyId).select('branding');
       const compBranding: any = company?.branding || {};
       guestObj.branding = {
+        logo: compBranding.logo || defaultBranding.logo,
         primaryColor: compBranding.primaryColor || defaultBranding.primaryColor,
         secondaryColor: compBranding.secondaryColor || defaultBranding.secondaryColor,
         videoTitle: compBranding.videoTitle || defaultBranding.videoTitle,
@@ -139,6 +141,7 @@ const getMeFromDB = async (
     const compBranding: any = company?.branding || {};
 
     userObj.branding = {
+      logo: compBranding.logo || defaultBranding.logo,
       primaryColor: compBranding.primaryColor || defaultBranding.primaryColor,
       secondaryColor: compBranding.secondaryColor || defaultBranding.secondaryColor,
       videoTitle: compBranding.videoTitle || defaultBranding.videoTitle,
@@ -150,6 +153,7 @@ const getMeFromDB = async (
   } else if (role === 'company') {
     const compBranding: any = result.branding || {};
     userObj.branding = {
+      logo: compBranding.logo || defaultBranding.logo,
       primaryColor: compBranding.primaryColor || defaultBranding.primaryColor,
       secondaryColor: compBranding.secondaryColor || defaultBranding.secondaryColor,
       videoTitle: compBranding.videoTitle || defaultBranding.videoTitle,
