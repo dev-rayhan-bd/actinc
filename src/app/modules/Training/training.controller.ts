@@ -195,7 +195,7 @@ const addModuleToTopic = catchAsync(async (req, res) => {
   const result = await TrainingServices.addModuleToTopicInDB(
     req.params.id as string,
     req.params.topicId as string,
-    req.body.moduleId,
+    req.body.moduleIds,
   );
 
   sendResponse(res, {

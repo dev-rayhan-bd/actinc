@@ -59,10 +59,9 @@ const updateTopicSchema = z.object({
   }),
 });
 
-// ── Add Module to Topic ──
 const addModuleToTopicSchema = z.object({
   body: z.object({
-    moduleId: z.string().min(1, 'moduleId is required'),
+    moduleIds: z.array(z.string()).min(1, 'moduleIds array is required and cannot be empty'),
   }),
 });
 

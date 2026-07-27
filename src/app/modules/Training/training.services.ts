@@ -336,7 +336,7 @@ const deleteTopicFromTrainingInDB = async (trainingId: string, topicId: string) 
 const addModuleToTopicInDB = async (
   trainingId: string,
   topicId: string,
-  moduleId: string,
+  moduleIds: string[],
 ) => {
   const topic = await Topic.findOne({
     _id: topicId,
@@ -347,21 +347,27 @@ const addModuleToTopicInDB = async (
     throw new AppError(httpStatus.NOT_FOUND, 'Topic not found in this training');
   }
 
-  const module = await Module.findOne({ _id: moduleId, isDeleted: false });
-  if (!module) {
-    throw new AppError(httpStatus.NOT_FOUND, 'Module not found');
+  const modules = await Module.find({ _id: { $in: moduleIds }, isDeleted: false });
+  if (modules.length !== moduleIds.length) {
+    throw new AppError(httpStatus.NOT_FOUND, 'One or more modules not found');
   }
 
-  // Avoid duplicate
-  if (topic.moduleIds.some((id) => id.toString() === moduleId)) {
-    throw new AppError(httpStatus.CONFLICT, 'Module is already in this topic');
+  const newModuleIds = [];
+
+  for (const id of moduleIds) {
+    // Avoid duplicate
+    if (!topic.moduleIds.some((existingId) => existingId.toString() === id)) {
+      topic.moduleIds.push(id as any);
+      newModuleIds.push(id);
+    }
   }
 
-  topic.moduleIds.push(module._id);
   await topic.save();
 
-  // Update module with topicId reference
-  await Module.findByIdAndUpdate(moduleId, { topicId });
+  // Update modules with topicId reference
+  if (newModuleIds.length > 0) {
+    await Module.updateMany({ _id: { $in: newModuleIds } }, { topicId });
+  }
 
   return topic.populate('moduleIds', 'title description thumbnailImage status');
 };
