@@ -9,7 +9,8 @@ export type TQuestionType =
   | 'Video'
   | 'Free Input'
   | 'Rating'
-  | 'Information';
+  | 'Information'
+  | 'Simulated Call';
 
 export type TModuleStatus = 'draft' | 'published';
 
@@ -67,6 +68,14 @@ export interface IInformationQuestion extends IQuestionBase {
   type: 'Information';
 }
 
+export interface ISimulatedCallQuestion extends IQuestionBase {
+  type: 'Simulated Call';
+  callerName: string;
+  callerPhoto?: string;
+  postCallVideoUrl?: string;
+  postCallMessage?: string;
+}
+
 // ── Union of all question types ──
 export type TQuestion =
   | IMCQQuestion
@@ -76,7 +85,8 @@ export type TQuestion =
   | IVideoQuestion
   | IRatingQuestion
   | IFreeInputQuestion
-  | IInformationQuestion;
+  | IInformationQuestion
+  | ISimulatedCallQuestion;
 
 // ── Module Document ──
 export interface IModule {
@@ -86,6 +96,7 @@ export interface IModule {
   questions: TQuestion[];
   status: TModuleStatus;
   createdBy: Types.ObjectId;
+  topicId?: Types.ObjectId;
   teamId?: Types.ObjectId;
   companyId?: Types.ObjectId;
   isDeleted: boolean;

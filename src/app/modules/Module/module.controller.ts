@@ -4,17 +4,38 @@ import sendResponse from '../../utils/sendResponse';
 import { ModuleServices } from './module.services';
 import uploadImage from '../../middleware/upload';
 
-// ── Create Module (supports multipart for thumbnail) ──
-const createModule = catchAsync(async (req, res) => {
-  let thumbnailUrl: string | undefined;
+import { Request } from 'express';
 
-  if (req.file) {
-    thumbnailUrl = await uploadImage(req);
+// Helper to process multiple dynamic files (thumbnailImage, questions[0].callerPhoto, etc.)
+const processDynamicFiles = async (req: Request, payload: any) => {
+  if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+    const uploadPromises = req.files.map(async (file) => {
+      const url = await uploadImage(req, file);
+      const fieldname = file.fieldname;
+
+      if (fieldname === 'thumbnailImage') {
+        payload.thumbnailImage = url;
+      } else {
+        const match = fieldname.match(/^questions\[(\d+)\]\.(.+)$/);
+        if (match && payload.questions) {
+          const index = parseInt(match[1], 10);
+          const prop = match[2];
+          if (payload.questions[index]) {
+            payload.questions[index][prop] = url;
+          }
+        }
+      }
+    });
+
+    await Promise.all(uploadPromises);
   }
+  return payload;
+};
 
-  // If multipart, data comes as JSON string in req.body.data
+// ── Create Module (supports multipart for dynamic files) ──
+const createModule = catchAsync(async (req, res) => {
   const data = req.body.data ? JSON.parse(req.body.data) : req.body;
-  const payload = { ...data, ...(thumbnailUrl && { thumbnailImage: thumbnailUrl }) };
+  const payload = await processDynamicFiles(req, data);
 
   const result = await ModuleServices.createModuleInDB(payload, req.user.userId!);
 
@@ -51,17 +72,10 @@ const getModuleById = catchAsync(async (req, res) => {
   });
 });
 
-// ── Update Module (supports multipart for thumbnail) ──
+// ── Update Module (supports multipart for dynamic files) ──
 const updateModule = catchAsync(async (req, res) => {
-  let thumbnailUrl: string | undefined;
-
-  if (req.file) {
-    thumbnailUrl = await uploadImage(req);
-  }
-
-  // If multipart, data comes as JSON string in req.body.data
   const data = req.body.data ? JSON.parse(req.body.data) : req.body;
-  const payload = { ...data, ...(thumbnailUrl && { thumbnailImage: thumbnailUrl }) };
+  const payload = await processDynamicFiles(req, data);
 
   const result = await ModuleServices.updateModuleInDB(req.params.id as string, payload);
 

@@ -92,6 +92,19 @@ const informationQuestionSchema = z.object({
   isScored: z.boolean(),
 });
 
+const simulatedCallQuestionSchema = z.object({
+  id: z.string(),
+  type: z.literal('Simulated Call'),
+  content: z.string().min(1, 'Question content is required'),
+  image: z.string().optional(),
+  explanation: z.string().optional(),
+  isScored: z.boolean(),
+  callerName: z.string().min(1, 'Caller name is required'),
+  callerPhoto: z.string().optional(),
+  postCallVideoUrl: z.string().optional(),
+  postCallMessage: z.string().optional(),
+});
+
 // ── Discriminated Union for all question types ──
 const questionSchema = z.discriminatedUnion('type', [
   mcqQuestionSchema,
@@ -102,6 +115,7 @@ const questionSchema = z.discriminatedUnion('type', [
   ratingQuestionSchema,
   freeInputQuestionSchema,
   informationQuestionSchema,
+  simulatedCallQuestionSchema,
 ]);
 
 // ── Create Module ──

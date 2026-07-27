@@ -16,6 +16,7 @@ const questionSchema = new Schema(
         'Free Input',
         'Rating',
         'Information',
+        'Simulated Call',
       ],
       required: true,
     },
@@ -49,6 +50,12 @@ const questionSchema = new Schema(
 
     // Rating
     scale: { type: Number },
+
+    // Simulated Call
+    callerName: { type: String },
+    callerPhoto: { type: String },
+    postCallVideoUrl: { type: String },
+    postCallMessage: { type: String },
   },
   { _id: false },
 );
@@ -69,6 +76,10 @@ const moduleSchema = new Schema<IModule, TModuleModel>(
       type: Schema.Types.ObjectId,
       ref: 'Admin',
       required: true,
+    },
+    topicId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Topic',
     },
     teamId: {
       type: Schema.Types.ObjectId,

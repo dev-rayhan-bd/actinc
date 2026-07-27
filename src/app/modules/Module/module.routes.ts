@@ -8,11 +8,11 @@ import { USER_ROLE } from '../Auth/auth.constant';
 
 const router = express.Router();
 
-// ── Create Module (multipart for thumbnail image) ──
+// ── Create Module (multipart for any dynamic files) ──
 router.post(
   '/',
   auth(USER_ROLE.admin, USER_ROLE.superAdmin),
-  upload.single('thumbnailImage') as any,
+  upload.any() as any,
   ModuleControllers.createModule,
 );
 
@@ -38,11 +38,11 @@ router.get(
   ModuleControllers.getModuleById,
 );
 
-// ── Update Module (multipart for thumbnail image) ──
+// ── Update Module ──
 router.patch(
   '/:id',
   auth(USER_ROLE.admin, USER_ROLE.superAdmin),
-  upload.single('thumbnailImage') as any,
+  upload.any() as any,
   ModuleControllers.updateModule,
 );
 
