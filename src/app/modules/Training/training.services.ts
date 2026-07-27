@@ -604,6 +604,11 @@ const authenticateTrainingInDB = async (
     );
   }
 
+  // Force them to be a guest if they have a valid invite token
+  if (isInviteTokenValid) {
+    payload.authType = 'guest';
+  }
+
   let user: any = null;
 
   if (payload.authType === 'email') {
