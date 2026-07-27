@@ -11,7 +11,7 @@ const router = express.Router();
 
 // ── PUBLIC: Join training by token (NO auth required) ──
 router.get(
-  '/join/:token',
+  '/:id/join/:token',
   TrainingInviteControllers.joinByToken,
 );
 
@@ -74,13 +74,13 @@ router.patch(
 // ── Topic Management ──
 router.get(
   '/:id/topics',
-  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin,USER_ROLE.company,USER_ROLE.user,USER_ROLE.guest),
   TrainingControllers.getTopics,
 );
 
 router.get(
   '/:id/topics/:topicId',
-  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin,USER_ROLE.company,USER_ROLE.user,USER_ROLE.guest),
   TrainingControllers.getSingleTopic,
 );
 

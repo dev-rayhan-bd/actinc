@@ -76,13 +76,6 @@ export const getEmailTemplate = ({
         <center>
             <div style="height: 40px;">&nbsp;</div>
             <table class="main" role="presentation">
-                <!-- Header -->
-                <tr>
-                    <td class="header">
-                        <img src="${logoUrl}" alt="ActInc Logo" class="logo">
-                    </td>
-                </tr>
-
                 <!-- Content Area -->
                 <tr>
                     <td class="content">
@@ -109,6 +102,7 @@ export const getEmailTemplate = ({
                             ? `
                         <div class="btn-wrapper">
                             <a href="${buttonLink}" class="btn">${buttonText}</a>
+                            ${codeExpiry && !otpCode ? `<p style="font-size: 13px; color: #888; margin-top: 15px;">${codeExpiry}</p>` : ""}
                         </div>
                         `
                             : ""

@@ -580,14 +580,24 @@ import { createToken } from '../Auth/auth.utils';
 // ── Authenticate User for Training ──
 const authenticateTrainingInDB = async (
   trainingId: string,
-  payload: { authType: string; identifier?: string; name?: string }
+  payload: { authType: string; identifier?: string; name?: string; inviteToken?: string }
 ) => {
   const training = await Training.findOne({ _id: trainingId, isDeleted: false });
   if (!training) {
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
   }
 
-  if (training.authType !== payload.authType) {
+  let isInviteTokenValid = false;
+  if (payload.inviteToken) {
+    const { TrainingInvite } = await import('../TrainingInvite/trainingInvite.model');
+    const invite = await TrainingInvite.findOne({ token: payload.inviteToken });
+    if (!invite || invite.expiresAt < new Date()) {
+      throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid or expired invite token');
+    }
+    isInviteTokenValid = true;
+  }
+
+  if (!isInviteTokenValid && training.authType !== payload.authType) {
     throw new AppError(
       httpStatus.FORBIDDEN,
       `This training requires ${training.authType} authentication`
@@ -614,6 +624,7 @@ const authenticateTrainingInDB = async (
     if (!user) {
       user = await User.create({
         employeeId: payload.identifier,
+        email: `emp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}@actinc.local`,
         firstName: payload.name || 'User',
         role: 'user',
         authType: 'employeeId',
@@ -626,6 +637,7 @@ const authenticateTrainingInDB = async (
     }
     user = await User.create({
       firstName: payload.name || 'Guest',
+      email: `passcode_${Date.now()}_${Math.random().toString(36).substring(2, 9)}@actinc.local`,
       role: 'guest',
       authType: 'passcode',
       companyId: training.companyId,
@@ -634,6 +646,7 @@ const authenticateTrainingInDB = async (
     // Guest doesn't need identifier
     user = await User.create({
       firstName: payload.name || 'Guest',
+      email: `guest_${Date.now()}_${Math.random().toString(36).substring(2, 9)}@actinc.local`,
       role: 'guest',
       authType: 'anonymous', // we can keep anonymous here as the User schema enum uses anonymous
       companyId: training.companyId,

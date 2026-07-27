@@ -33,7 +33,7 @@ const generateShareLinkInDB = async (
   });
 
   const baseUrl = config.frontend_url || config.server_url || 'http://localhost:3000';
-  const shareLink = `${baseUrl}/training/join/${token}`;
+  const shareLink = `${baseUrl}/training/${trainingId}/join/${token}`;
 
   return {
     token: invite.token,
@@ -55,8 +55,8 @@ const sendTrainingInviteByEmail = async (
     userName: email,
     title: 'You\'re Invited to a Training!',
     body: `You've been invited to experience the training: <strong>${linkData.trainingTitle}</strong>. Click the link below to get started.`,
-    otpCode: linkData.shareLink,
-    codeLabel: 'Your Training Link',
+    buttonText: 'Join Training',
+    buttonLink: linkData.shareLink,
     codeExpiry: `This link expires on ${linkData.expiresAt.toLocaleDateString()}.`,
   });
 
@@ -105,6 +105,7 @@ const getTrainingByTokenFromDB = async (token: string) => {
 
   return {
     ...trainingObj,
+    authType: 'guest', // Force frontend to show guest login screen
     topics: topics.map((topic) => {
       const topicObj = topic.toObject();
       return {
