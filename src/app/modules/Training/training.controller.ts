@@ -130,6 +130,35 @@ const addTopic = catchAsync(async (req, res) => {
   });
 });
 
+// ── Get Topics for a Training ──
+const getTopics = catchAsync(async (req, res) => {
+  const result = await TrainingServices.getTopicsByTrainingIdFromDB(
+    req.params.id as string,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Topics retrieved successfully',
+    data: result,
+  });
+});
+
+// ── Get Single Topic ──
+const getSingleTopic = catchAsync(async (req, res) => {
+  const result = await TrainingServices.getSingleTopicFromDB(
+    req.params.id as string,
+    req.params.topicId as string,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Topic retrieved successfully',
+    data: result,
+  });
+});
+
 // ── Update Topic ──
 const updateTopic = catchAsync(async (req, res) => {
   const result = await TrainingServices.updateTopicInDB(
@@ -222,6 +251,20 @@ const getTrainingsByCompany = catchAsync(async (req, res) => {
   });
 });
 
+// ── Get My Trainings ──
+const getMyTrainings = catchAsync(async (req, res) => {
+  const result = await TrainingServices.getMyTrainingsFromDB(
+    req.user.userId as string,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'My trainings retrieved successfully',
+    data: result,
+  });
+});
+
 // ── Get Training for User (public with progress) ──
 const getTrainingForUser = catchAsync(async (req, res) => {
   const userId = req.user?.userId;
@@ -238,6 +281,21 @@ const getTrainingForUser = catchAsync(async (req, res) => {
   });
 });
 
+// ── Authenticate for Training (Public) ──
+const authenticateTraining = catchAsync(async (req, res) => {
+  const result = await TrainingServices.authenticateTrainingInDB(
+    req.params.id as string,
+    req.body
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Authenticated successfully',
+    data: result,
+  });
+});
+
 export const TrainingControllers = {
   createTraining,
   getAllTrainings,
@@ -246,6 +304,8 @@ export const TrainingControllers = {
   deleteTraining,
   duplicateTraining,
   assignTraining,
+  getTopics,
+  getSingleTopic,
   addTopic,
   updateTopic,
   deleteTopic,
@@ -253,5 +313,7 @@ export const TrainingControllers = {
   removeModuleFromTopic,
   reorderTopics,
   getTrainingsByCompany,
+  getMyTrainings,
   getTrainingForUser,
+  authenticateTraining,
 };

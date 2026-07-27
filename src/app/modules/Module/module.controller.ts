@@ -60,6 +60,18 @@ const getAllModules = catchAsync(async (req, res) => {
   });
 });
 
+// ── Get All Modules for Dropdown ──
+const getAllModulesForDropdown = catchAsync(async (req, res) => {
+  const result = await ModuleServices.getAllModulesForDropdownFromDB();
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Modules dropdown retrieved successfully',
+    data: result,
+  });
+});
+
 // ── Get Single Module ──
 const getModuleById = catchAsync(async (req, res) => {
   const result = await ModuleServices.getModuleByIdFromDB(req.params.id as string);
@@ -166,6 +178,7 @@ const getModulesByCompany = catchAsync(async (req, res) => {
 export const ModuleControllers = {
   createModule,
   getAllModules,
+  getAllModulesForDropdown,
   getModuleById,
   updateModule,
   deleteModule,

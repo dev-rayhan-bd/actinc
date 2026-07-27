@@ -29,6 +29,13 @@ router.get(
   TrainingControllers.getAllTrainings,
 );
 
+// ── Get My Trainings (User/Guest) ──
+router.get(
+  '/my-trainings',
+  auth(USER_ROLE.user, USER_ROLE.guest),
+  TrainingControllers.getMyTrainings,
+);
+
 router.get(
   '/:id',
   auth(USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.company),
@@ -65,6 +72,18 @@ router.patch(
 );
 
 // ── Topic Management ──
+router.get(
+  '/:id/topics',
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  TrainingControllers.getTopics,
+);
+
+router.get(
+  '/:id/topics/:topicId',
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  TrainingControllers.getSingleTopic,
+);
+
 router.post(
   '/:id/topics',
   auth(USER_ROLE.admin, USER_ROLE.superAdmin),
@@ -132,6 +151,12 @@ router.post(
   '/:id/send-invite',
   auth(USER_ROLE.admin, USER_ROLE.superAdmin),
   TrainingInviteControllers.sendInvite,
+);
+
+// ── Authenticate for Training (Public Route) ──
+router.post(
+  '/:id/authenticate',
+  TrainingControllers.authenticateTraining,
 );
 
 export const TrainingRoutes = router;

@@ -8,6 +8,8 @@ const createTrainingSchema = z.object({
     status: z.enum(['draft', 'published']).optional().default('draft'),
     companyId: z.string().optional(),
     teamId: z.string().optional(),
+    authType: z.enum(['passcode', 'email', 'employeeId', 'guest']).optional(),
+    passcode: z.string().optional(),
   }),
 });
 
@@ -19,6 +21,8 @@ const updateTrainingSchema = z.object({
     status: z.enum(['draft', 'published']).optional(),
     companyId: z.string().optional(),
     teamId: z.string().optional(),
+    authType: z.enum(['passcode', 'email', 'employeeId', 'guest']).optional(),
+    passcode: z.string().optional(),
   }),
 });
 

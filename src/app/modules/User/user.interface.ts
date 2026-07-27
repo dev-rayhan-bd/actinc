@@ -2,7 +2,7 @@ import { Model, Types } from 'mongoose';
 
 export type TUserRole = 'user' | 'admin' | 'superAdmin' | 'company' | 'guest';
 
-export type TAuthType = 'email' | 'employeeId' | 'anonymous' | 'qr';
+export type TAuthType = 'email' | 'employeeId' | 'anonymous' | 'qr' | 'passcode' | 'guest';
 
 /** Company-only status — broader than the generic user status */
 export type TCompanyStatus = 'active' | 'inactive' | 'suspended';

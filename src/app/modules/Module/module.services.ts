@@ -30,6 +30,15 @@ const getAllModulesFromDB = async (query: Record<string, unknown>) => {
   return { result, meta };
 };
 
+// ── Get All Modules for Dropdown ──
+const getAllModulesForDropdownFromDB = async () => {
+  const result = await Module.find({ isDeleted: false })
+    .select('_id title')
+    .sort({ createdAt: -1 });
+
+  return result;
+};
+
 // ── Get Single Module ──
 const getModuleByIdFromDB = async (id: string) => {
   const result = await Module.findOne({ _id: id, isDeleted: false }).populate(
@@ -208,6 +217,7 @@ const getModulesByCompany = async (companyId: string) => {
 export const ModuleServices = {
   createModuleInDB,
   getAllModulesFromDB,
+  getAllModulesForDropdownFromDB,
   getModuleByIdFromDB,
   updateModuleInDB,
   deleteModuleFromDB,

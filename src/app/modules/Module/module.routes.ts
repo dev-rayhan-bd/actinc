@@ -31,6 +31,13 @@ router.get(
   ModuleControllers.getAllModules,
 );
 
+// ── Get All Modules for Dropdown ──
+router.get(
+  '/dropdown',
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  ModuleControllers.getAllModulesForDropdown,
+);
+
 // ── Get Single Module ──
 router.get(
   '/:id',

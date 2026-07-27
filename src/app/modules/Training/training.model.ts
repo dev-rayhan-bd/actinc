@@ -25,6 +25,13 @@ const trainingSchema = new Schema<ITraining, TTrainingModel>(
     thumbnailImage: { type: String, default: '' },
     companyId: { type: Schema.Types.ObjectId, ref: 'User' },
     teamId: { type: Schema.Types.ObjectId, ref: 'Team' },
+    authType: {
+      type: String,
+      enum: ['passcode', 'email', 'employeeId', 'guest'],
+      default: 'guest',
+    },
+    passcode: { type: String },
+    qrCodeUrl: { type: String },
     status: {
       type: String,
       enum: ['draft', 'published'],

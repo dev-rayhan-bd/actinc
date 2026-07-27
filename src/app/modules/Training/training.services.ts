@@ -4,11 +4,22 @@ import QueryBuilder from '../../builder/QueryBuilder';
 import { Training, Topic } from './training.model';
 import { Module } from '../Module/module.model';
 import { UserProgress } from '../UserProgress/userProgress.model';
+import { User } from '../User/user.model';
+import QRCode from 'qrcode';
+import config from '../../config';
 
 // ── Create Training ──
 const createTrainingInDB = async (payload: any, userId: string) => {
   payload.createdBy = userId;
   const result = await Training.create(payload);
+
+  const baseUrl = config.frontend_url || config.server_url || 'http://localhost:3000';
+  const joinUrl = `${baseUrl}/training/join/${result._id}?authType=${result.authType}`;
+  const qrCodeDataUrl = await QRCode.toDataURL(joinUrl);
+  
+  result.qrCodeUrl = qrCodeDataUrl;
+  await result.save();
+
   return result;
 };
 
@@ -237,6 +248,57 @@ const addTopicToTrainingInDB = async (trainingId: string, payload: any) => {
   return topic;
 };
 
+// ── Get Topics by Training ID ──
+const getTopicsByTrainingIdFromDB = async (trainingId: string) => {
+  const training = await Training.findOne({ _id: trainingId, isDeleted: false });
+  if (!training) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
+  }
+
+  const topics = await Topic.find({ trainingId, isDeleted: false })
+    .sort({ order: 1 })
+    .populate({
+      path: 'moduleIds',
+      select: 'title description thumbnailImage status',
+      match: { isDeleted: false },
+    });
+
+  return topics.map((topic) => {
+    const topicObj = topic.toObject();
+    return {
+      ...topicObj,
+      modules: topicObj.moduleIds,
+      moduleIds: undefined,
+      moduleCount: Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds.length : 0,
+    };
+  });
+};
+
+// ── Get Single Topic ──
+const getSingleTopicFromDB = async (trainingId: string, topicId: string) => {
+  const topic = await Topic.findOne({
+    _id: topicId,
+    trainingId,
+    isDeleted: false,
+  }).populate({
+    path: 'moduleIds',
+    select: 'title description thumbnailImage status',
+    match: { isDeleted: false },
+  });
+
+  if (!topic) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Topic not found');
+  }
+
+  const topicObj = topic.toObject();
+  return {
+    ...topicObj,
+    modules: topicObj.moduleIds,
+    moduleIds: undefined,
+    moduleCount: Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds.length : 0,
+  };
+};
+
 // ── Update Topic ──
 const updateTopicInDB = async (trainingId: string, topicId: string, payload: any) => {
   const topic = await Topic.findOne({
@@ -377,13 +439,68 @@ const getTrainingsByCompanyFromDB = async (companyId: string) => {
   return result;
 };
 
+// ── Get My Trainings (User/Guest) ──
+const getMyTrainingsFromDB = async (userId: string) => {
+  const user = await User.findById(userId);
+  if (!user) {
+    throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+  }
+
+  if (!user.companyId) {
+    return [];
+  }
+
+  const query: any = {
+    companyId: user.companyId,
+    isDeleted: false,
+    status: 'published',
+  };
+
+  // If the user belongs to a team, they should see trainings assigned to the whole company OR specifically to their team.
+  if (user.teamId) {
+    query.$or = [
+      { teamId: user.teamId },
+      { teamId: null },
+      { teamId: { $exists: false } },
+    ];
+  }
+
+  const trainings = await Training.find(query)
+    .select('-qrCodeUrl -passcode')
+    .populate('createdBy', 'firstName lastName email')
+    .sort({ createdAt: -1 });
+
+  // Attach topic + module counts
+  const result = await Promise.all(
+    trainings.map(async (training: any) => {
+      const topics = await Topic.find({
+        trainingId: training._id,
+        isDeleted: false,
+      })
+        .sort({ order: 1 })
+        .select('title moduleIds order');
+
+      const trainingObj = training.toObject();
+      return {
+        ...trainingObj,
+        topicCount: topics.length,
+        totalModules: topics.reduce((sum, t) => sum + t.moduleIds.length, 0),
+      };
+    }),
+  );
+
+  return result;
+};
+
 // ── Get Training for User (public / with progress) ──
 const getTrainingForUserFromDB = async (trainingId: string, userId?: string) => {
   const training = await Training.findOne({
     _id: trainingId,
     isDeleted: false,
     status: 'published',
-  }).populate('companyId', 'firstName email slug image branding');
+  })
+    .select('-qrCodeUrl -passcode')
+    .populate('companyId', 'firstName email slug image branding');
 
   if (!training) {
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found or not published');
@@ -458,6 +575,88 @@ const getTrainingForUserFromDB = async (trainingId: string, userId?: string) => 
   };
 };
 
+import { createToken } from '../Auth/auth.utils';
+
+// ── Authenticate User for Training ──
+const authenticateTrainingInDB = async (
+  trainingId: string,
+  payload: { authType: string; identifier?: string; name?: string }
+) => {
+  const training = await Training.findOne({ _id: trainingId, isDeleted: false });
+  if (!training) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
+  }
+
+  if (training.authType !== payload.authType) {
+    throw new AppError(
+      httpStatus.FORBIDDEN,
+      `This training requires ${training.authType} authentication`
+    );
+  }
+
+  let user: any = null;
+
+  if (payload.authType === 'email') {
+    if (!payload.identifier) throw new AppError(httpStatus.BAD_REQUEST, 'Email is required');
+    user = await User.findOne({ email: payload.identifier });
+    if (!user) {
+      user = await User.create({
+        email: payload.identifier,
+        firstName: payload.name || 'User',
+        role: 'user',
+        authType: 'email',
+        companyId: training.companyId,
+      });
+    }
+  } else if (payload.authType === 'employeeId') {
+    if (!payload.identifier) throw new AppError(httpStatus.BAD_REQUEST, 'Employee ID is required');
+    user = await User.findOne({ employeeId: payload.identifier });
+    if (!user) {
+      user = await User.create({
+        employeeId: payload.identifier,
+        firstName: payload.name || 'User',
+        role: 'user',
+        authType: 'employeeId',
+        companyId: training.companyId,
+      });
+    }
+  } else if (payload.authType === 'passcode') {
+    if (payload.identifier !== training.passcode) {
+      throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid passcode');
+    }
+    user = await User.create({
+      firstName: payload.name || 'Guest',
+      role: 'guest',
+      authType: 'passcode',
+      companyId: training.companyId,
+    });
+  } else if (payload.authType === 'guest') {
+    // Guest doesn't need identifier
+    user = await User.create({
+      firstName: payload.name || 'Guest',
+      role: 'guest',
+      authType: 'anonymous', // we can keep anonymous here as the User schema enum uses anonymous
+      companyId: training.companyId,
+    });
+  } else {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Invalid auth type');
+  }
+
+  // Generate JWT token
+  const jwtPayload = {
+    userId: user._id.toString(),
+    role: user.role,
+  };
+
+  const accessToken = createToken(
+    jwtPayload,
+    config.jwt_access_secret as string,
+    config.jwt_access_expires_in as string
+  );
+
+  return { user, accessToken };
+};
+
 export const TrainingServices = {
   createTrainingInDB,
   getAllTrainingsFromDB,
@@ -466,6 +665,8 @@ export const TrainingServices = {
   deleteTrainingFromDB,
   duplicateTrainingInDB,
   assignTrainingInDB,
+  getTopicsByTrainingIdFromDB,
+  getSingleTopicFromDB,
   addTopicToTrainingInDB,
   updateTopicInDB,
   deleteTopicFromTrainingInDB,
@@ -473,5 +674,7 @@ export const TrainingServices = {
   removeModuleFromTopicInDB,
   reorderTopicsInDB,
   getTrainingsByCompanyFromDB,
+  getMyTrainingsFromDB,
   getTrainingForUserFromDB,
+  authenticateTrainingInDB,
 };

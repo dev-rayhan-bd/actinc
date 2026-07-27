@@ -28,7 +28,7 @@ const userSchema = new Schema<TUser, UserModel, IUserMethods>(
     password: { type: String, select: 0 },
     authType: {
       type: String,
-      enum: ["email", "employeeId", "anonymous", "qr"],
+      enum: ["email", "employeeId", "anonymous", "qr", "passcode", "guest"],
       default: "email",
     },
     role: {

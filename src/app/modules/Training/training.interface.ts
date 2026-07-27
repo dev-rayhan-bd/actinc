@@ -22,6 +22,9 @@ export interface ITraining {
   thumbnailImage?: string;
   companyId?: Types.ObjectId;   // assigned to a company
   teamId?: Types.ObjectId;      // optionally scoped to a team
+  authType: 'passcode' | 'email' | 'employeeId' | 'guest';
+  passcode?: string;            // only if authType === 'passcode'
+  qrCodeUrl?: string;           // auto-generated QR code link
   status: TTrainingStatus;
   isDeleted: boolean;
   createdBy: Types.ObjectId;    // Admin who created
