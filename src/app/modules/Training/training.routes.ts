@@ -25,7 +25,7 @@ router.post(
 
 router.get(
   '/',
-  auth(USER_ROLE.admin, USER_ROLE.superAdmin),
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin,USER_ROLE.company,USER_ROLE.user,USER_ROLE.guest),
   TrainingControllers.getAllTrainings,
 );
 
