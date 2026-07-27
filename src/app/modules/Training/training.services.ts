@@ -181,7 +181,7 @@ const assignTrainingInDB = async (
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
   }
 
-  const updateData: any = { 
+  const updateData: any = {
     companyId: payload.companyId,
     status: 'published', // Automatically publish when assigned
   };
@@ -206,7 +206,7 @@ const assignTrainingInDB = async (
     // Publish and assign all child modules
     await Module.updateMany(
       { _id: { $in: allModuleIds } },
-      { 
+      {
         status: 'published',
         companyId: payload.companyId,
         ...(payload.teamId && { teamId: payload.teamId })
@@ -422,19 +422,19 @@ const getTrainingForUserFromDB = async (trainingId: string, userId?: string) => 
             status: mod.status,
             userProgress: userProgress
               ? {
-                  status: userProgress.status,
-                  progressPercentage: userProgress.progressPercentage,
-                  score: userProgress.score,
-                  completedQuestions: userProgress.completedQuestions,
-                  totalQuestions: userProgress.totalQuestions,
-                }
+                status: userProgress.status,
+                progressPercentage: userProgress.progressPercentage,
+                score: userProgress.score,
+                completedQuestions: userProgress.completedQuestions,
+                totalQuestions: userProgress.totalQuestions,
+              }
               : {
-                  status: 'not_started',
-                  progressPercentage: 0,
-                  score: 0,
-                  completedQuestions: 0,
-                  totalQuestions: mod.questions ? mod.questions.length : 0,
-                },
+                status: 'not_started',
+                progressPercentage: 0,
+                score: 0,
+                completedQuestions: 0,
+                totalQuestions: mod.questions ? mod.questions.length : 0,
+              },
           };
         }),
       );
