@@ -750,16 +750,11 @@ const authenticateTrainingInDB = async (
     isInviteTokenValid = true;
   }
 
-  if (!isInviteTokenValid && training.authType !== payload.authType) {
+  if (training.authType !== payload.authType) {
     throw new AppError(
       httpStatus.FORBIDDEN,
       `This training requires ${training.authType} authentication`
     );
-  }
-
-  // Force them to be a guest if they have a valid invite token
-  if (isInviteTokenValid) {
-    payload.authType = 'guest';
   }
 
   let user: any = null;
