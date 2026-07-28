@@ -5,7 +5,7 @@ import { Module } from '../Module/module.model';
 const getPlatformStats = async () => {
   const [totalCompanies, activeEmployees, totalModules] = await Promise.all([
     User.countDocuments({ role: 'company', isDeleted: false }),
-    User.countDocuments({ isDeleted: false, status: 'active' }),
+    User.countDocuments({ role: { $in: ['user', 'guest'] }, isDeleted: false, status: 'active' }),
     Module.countDocuments({ isDeleted: false }),
   ]);
 
@@ -20,7 +20,7 @@ const getPlatformStats = async () => {
 const getCompanyBreakdown = async () => {
   // Aggregate users count per company
   const userCounts = await User.aggregate([
-    { $match: { isDeleted: false, status: 'active' } },
+    { $match: { role: { $in: ['user', 'guest'] }, isDeleted: false, status: 'active' } },
     { $group: { _id: '$companyId', activeUsers: { $sum: 1 } } },
   ]);
 

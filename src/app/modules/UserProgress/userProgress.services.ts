@@ -407,7 +407,7 @@ const completeModuleInDB = async (
     progress.completedQuestions = module.questions.length;
     progress.totalQuestions = module.questions.length;
     progress.completedAt = new Date();
-    if (!progress.score) progress.score = 100;
+    if (progress.score === undefined || progress.score === null) progress.score = 100;
 
     await progress.save();
     return progress;
@@ -434,8 +434,12 @@ const getTeamPerformanceFromDB = async (teamId: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
   }
 
-  const teamUsers = await User.find({ teamId, role: 'user', isDeleted: false }).select(
-    'firstName lastName email image',
+  const teamUsers = await User.find({ 
+    teamId, 
+    role: { $in: ['user', 'guest'] }, 
+    isDeleted: false 
+  }).select(
+    'firstName lastName email image role',
   );
 
   const teamUserIds = teamUsers.map((u) => u._id);
@@ -519,7 +523,11 @@ const getCompanyPerformanceFromDB = async (companyId: string) => {
   }
 
   const teams = await Team.find({ companyId });
-  const companyUsers = await User.find({ companyId, role: 'user', isDeleted: false });
+  const companyUsers = await User.find({ 
+    companyId, 
+    role: { $in: ['user', 'guest'] }, 
+    isDeleted: false 
+  });
   const companyUserIds = companyUsers.map((u) => u._id);
 
   const teamIds = teams.map((t) => t._id);

@@ -304,25 +304,8 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
     : 0;
   const organizationGrade = Math.round(avgScore * 10) / 10; // 0-10 scale
 
-  // 8. Get behavioral assessments
-  const [baselineMetrics, followUpMetrics] = await Promise.all([
-    BehavioralAssessment.getCompanyMetricAverages(companyId, 'baseline'),
-    BehavioralAssessment.getCompanyMetricAverages(companyId, 'follow_up'),
-  ]);
-
-  // Standard metrics order for consistent display
-  const standardMetrics = [
-    'Social Safety',
-    'Workplace Respect',
-    'Inclusion & Equity',
-    'Well-being',
-    'Team Collaboration',
-    'Conflict Resolution',
-    'Leadership Skills',
-  ];
-
-  // Build Bar Chart Data (modules or metrics chart)
-  const moduleChartData = modules.map((mod) => {
+  // Build Bar Chart Data using Module titles
+  const barChartItems = modules.map((mod) => {
     const modProgress = userProgress.filter((p) => p.moduleId.equals(mod._id));
     const scored = modProgress.filter((p) => p.score !== undefined && p.score !== null);
     const currentScore =
@@ -330,34 +313,23 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
         ? Math.round(scored.reduce((sum, p) => sum + (p.score || 0), 0) / scored.length)
         : 0;
 
-    // Estimate baseline as initial 60% of current score or metric default
-    const baseline = currentScore > 0 ? Math.max(30, Math.round(currentScore * 0.75)) : 50;
+    // Estimate baseline as initial 75% of current score
+    const baseline = currentScore > 0 ? Math.max(30, Math.round(currentScore * 0.75)) : 0;
 
     return {
       name: mod.title,
       baseline,
-      followUp: currentScore || 85,
+      followUp: currentScore || 0,
       score: currentScore,
     };
   });
-
-  // If no modules exist yet, use standard metrics for bar chart
-  const barChartItems =
-    moduleChartData.length > 0
-      ? moduleChartData
-      : standardMetrics.map((m) => ({
-          name: m,
-          baseline: baselineMetrics[m] || 60,
-          followUp: followUpMetrics[m] || 85,
-          score: followUpMetrics[m] || 85,
-        }));
 
   const totalIncreaseSum = barChartItems.reduce(
     (sum, item) => sum + (item.followUp - item.baseline),
     0,
   );
   const averageIncreasePercentage =
-    barChartItems.length > 0 ? Math.max(0, Math.round(totalIncreaseSum / barChartItems.length)) : 22;
+    barChartItems.length > 0 ? Math.max(0, Math.round(totalIncreaseSum / barChartItems.length)) : 0;
 
   const barChart = {
     averageIncreasePercentage,
