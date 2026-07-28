@@ -24,7 +24,7 @@ const userProgressSchema = new Schema<IUserProgress, UserProgressModel>(
       default: 'not_started',
     },
     progressPercentage: { type: Number, default: 0, min: 0, max: 100 },
-    score: { type: Number, min: 0, max: 100 },
+    score: { type: Number, default: 0, min: 0, max: 100 },
     completedQuestions: { type: Number, default: 0 },
     totalQuestions: { type: Number, default: 0 },
     startedAt: { type: Date },

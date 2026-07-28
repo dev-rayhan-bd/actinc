@@ -143,7 +143,7 @@ const getMyLearningPathFromDB = async (
           status: progress.status,
           progressPercentage: progress.progressPercentage,
           completedQuestions: progress.completedQuestions,
-          score: progress.score,
+          score: progress.score || 0,
           startedAt: progress.startedAt,
           completedAt: progress.completedAt,
         },
@@ -187,6 +187,12 @@ const getModuleForUserFromDB = async (
 
   if (userId && userId !== 'guest') {
     progress = await UserProgress.findOne({ userId, moduleId });
+    if (progress) {
+      progress = progress.toObject();
+      if (progress.score === undefined || progress.score === null) {
+        progress.score = 0;
+      }
+    }
   }
 
   if (!progress) {
@@ -197,6 +203,7 @@ const getModuleForUserFromDB = async (
       moduleId: module._id,
       status: 'not_started',
       progressPercentage: 0,
+      score: 0,
       totalQuestions: module.questions ? module.questions.length : 0,
       completedQuestions: 0,
       answers: [],
@@ -286,6 +293,7 @@ const submitAnswerInDB = async (
         teamId: user?.teamId || module.teamId,
         moduleId,
         status: 'in_progress',
+        score: 0,
         startedAt: new Date(),
         answers: [],
       });

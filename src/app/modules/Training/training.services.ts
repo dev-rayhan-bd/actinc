@@ -102,7 +102,7 @@ const getSingleTrainingFromDB = async (id: string, userId?: string) => {
               ? {
                 status: userProgress.status,
                 progressPercentage: userProgress.progressPercentage,
-                score: userProgress.score,
+                score: userProgress.score || 0,
                 completedQuestions: userProgress.completedQuestions,
                 totalQuestions: userProgress.totalQuestions,
               }
@@ -331,7 +331,7 @@ const getTopicsByTrainingIdFromDB = async (trainingId: string, userId?: string) 
               ? {
                 status: userProgress.status,
                 progressPercentage: userProgress.progressPercentage,
-                score: userProgress.score,
+                score: userProgress.score || 0,
                 completedQuestions: userProgress.completedQuestions,
                 totalQuestions: userProgress.totalQuestions,
               }
@@ -398,7 +398,7 @@ const getSingleTopicFromDB = async (trainingId: string, topicId: string, userId?
           ? {
             status: userProgress.status,
             progressPercentage: userProgress.progressPercentage,
-            score: userProgress.score,
+            score: userProgress.score || 0,
             completedQuestions: userProgress.completedQuestions,
             totalQuestions: userProgress.totalQuestions,
           }
@@ -469,6 +469,11 @@ const addModuleToTopicInDB = async (
     throw new AppError(httpStatus.NOT_FOUND, 'Topic not found in this training');
   }
 
+  const training = await Training.findOne({ _id: trainingId, isDeleted: false });
+  if (!training) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
+  }
+
   const modules = await Module.find({ _id: { $in: moduleIds }, isDeleted: false });
   if (modules.length !== moduleIds.length) {
     throw new AppError(httpStatus.NOT_FOUND, 'One or more modules not found');
@@ -486,9 +491,23 @@ const addModuleToTopicInDB = async (
 
   await topic.save();
 
-  // Update modules with topicId reference
+  // Update modules with topicId reference, and publish them if added to a training
   if (newModuleIds.length > 0) {
-    await Module.updateMany({ _id: { $in: newModuleIds } }, { topicId });
+    const updatePayload: any = { 
+      topicId, 
+      status: 'published' 
+    };
+    if (training.companyId) {
+      updatePayload.companyId = training.companyId;
+    }
+    if (training.teamId) {
+      updatePayload.teamId = training.teamId;
+    }
+
+    await Module.updateMany(
+      { _id: { $in: newModuleIds } },
+      updatePayload
+    );
   }
 
   return topic.populate('moduleIds', 'title description thumbnailImage status');
@@ -669,7 +688,7 @@ const getTrainingForUserFromDB = async (trainingId: string, userId?: string) => 
               ? {
                 status: userProgress.status,
                 progressPercentage: userProgress.progressPercentage,
-                score: userProgress.score,
+                score: userProgress.score || 0,
                 completedQuestions: userProgress.completedQuestions,
                 totalQuestions: userProgress.totalQuestions,
               }
