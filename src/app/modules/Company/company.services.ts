@@ -214,6 +214,9 @@ const deleteCompanyFromDB = async (id: string) => {
     { isDeleted: true, status: 'blocked' },
   );
 
+  // Hard-delete all related teams (since Team model doesn't have isDeleted)
+  await Team.deleteMany({ companyId: company._id });
+
   return company;
 };
 
