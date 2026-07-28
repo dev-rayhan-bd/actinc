@@ -56,7 +56,7 @@ const getAllTrainingsFromDB = async (query: Record<string, unknown>) => {
 };
 
 // ── Get Single Training (full nested: training → topics → modules) ──
-const getSingleTrainingFromDB = async (id: string) => {
+const getSingleTrainingFromDB = async (id: string, userId?: string) => {
   const training = await Training.findOne({ _id: id, isDeleted: false })
     .populate('createdBy', 'firstName lastName email')
     .populate('companyId', 'firstName email slug image branding');
@@ -76,17 +76,59 @@ const getSingleTrainingFromDB = async (id: string) => {
 
   const trainingObj = training.toObject();
 
-  return {
-    ...trainingObj,
-    topics: topics.map((topic) => {
+  const topicsWithProgress = await Promise.all(
+    topics.map(async (topic) => {
       const topicObj = topic.toObject();
+      const modules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+
+      const modulesWithProgress = await Promise.all(
+        modules.map(async (mod: any) => {
+          let userProgress: any = null;
+          if (userId) {
+            userProgress = await UserProgress.findOne({
+              userId,
+              moduleId: mod._id,
+            }).select('status progressPercentage score completedQuestions totalQuestions');
+          }
+
+          return {
+            _id: mod._id,
+            title: mod.title,
+            description: mod.description,
+            thumbnailImage: mod.thumbnailImage,
+            totalQuestions: mod.questions ? mod.questions.length : 0,
+            status: mod.status,
+            userProgress: userProgress
+              ? {
+                status: userProgress.status,
+                progressPercentage: userProgress.progressPercentage,
+                score: userProgress.score,
+                completedQuestions: userProgress.completedQuestions,
+                totalQuestions: userProgress.totalQuestions,
+              }
+              : {
+                status: 'not_started',
+                progressPercentage: 0,
+                score: 0,
+                completedQuestions: 0,
+                totalQuestions: mod.questions ? mod.questions.length : 0,
+              },
+          };
+        })
+      );
+
       return {
         ...topicObj,
-        modules: topicObj.moduleIds, // rename for clarity
+        modules: modulesWithProgress,
         moduleIds: undefined,
-        moduleCount: Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds.length : 0,
+        moduleCount: modulesWithProgress.length,
       };
-    }),
+    })
+  );
+
+  return {
+    ...trainingObj,
+    topics: topicsWithProgress,
   };
 };
 
@@ -249,7 +291,7 @@ const addTopicToTrainingInDB = async (trainingId: string, payload: any) => {
 };
 
 // ── Get Topics by Training ID ──
-const getTopicsByTrainingIdFromDB = async (trainingId: string) => {
+const getTopicsByTrainingIdFromDB = async (trainingId: string, userId?: string) => {
   const training = await Training.findOne({ _id: trainingId, isDeleted: false });
   if (!training) {
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
@@ -259,30 +301,72 @@ const getTopicsByTrainingIdFromDB = async (trainingId: string) => {
     .sort({ order: 1 })
     .populate({
       path: 'moduleIds',
-      select: 'title description thumbnailImage status',
+      select: 'title description thumbnailImage questions status',
       match: { isDeleted: false },
     });
 
-  return topics.map((topic) => {
-    const topicObj = topic.toObject();
-    return {
-      ...topicObj,
-      modules: topicObj.moduleIds,
-      moduleIds: undefined,
-      moduleCount: Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds.length : 0,
-    };
-  });
+  const topicsWithProgress = await Promise.all(
+    topics.map(async (topic) => {
+      const topicObj = topic.toObject();
+      const modules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+
+      const modulesWithProgress = await Promise.all(
+        modules.map(async (mod: any) => {
+          let userProgress: any = null;
+          if (userId) {
+            userProgress = await UserProgress.findOne({
+              userId,
+              moduleId: mod._id,
+            }).select('status progressPercentage score completedQuestions totalQuestions');
+          }
+
+          return {
+            _id: mod._id,
+            title: mod.title,
+            description: mod.description,
+            thumbnailImage: mod.thumbnailImage,
+            totalQuestions: mod.questions ? mod.questions.length : 0,
+            status: mod.status,
+            userProgress: userProgress
+              ? {
+                status: userProgress.status,
+                progressPercentage: userProgress.progressPercentage,
+                score: userProgress.score,
+                completedQuestions: userProgress.completedQuestions,
+                totalQuestions: userProgress.totalQuestions,
+              }
+              : {
+                status: 'not_started',
+                progressPercentage: 0,
+                score: 0,
+                completedQuestions: 0,
+                totalQuestions: mod.questions ? mod.questions.length : 0,
+              },
+          };
+        })
+      );
+
+      return {
+        ...topicObj,
+        modules: modulesWithProgress,
+        moduleIds: undefined,
+        moduleCount: modulesWithProgress.length,
+      };
+    })
+  );
+
+  return topicsWithProgress;
 };
 
 // ── Get Single Topic ──
-const getSingleTopicFromDB = async (trainingId: string, topicId: string) => {
+const getSingleTopicFromDB = async (trainingId: string, topicId: string, userId?: string) => {
   const topic = await Topic.findOne({
     _id: topicId,
     trainingId,
     isDeleted: false,
   }).populate({
     path: 'moduleIds',
-    select: 'title description thumbnailImage status',
+    select: 'title description thumbnailImage questions status',
     match: { isDeleted: false },
   });
 
@@ -291,11 +375,49 @@ const getSingleTopicFromDB = async (trainingId: string, topicId: string) => {
   }
 
   const topicObj = topic.toObject();
+  const modules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+
+  const modulesWithProgress = await Promise.all(
+    modules.map(async (mod: any) => {
+      let userProgress: any = null;
+      if (userId) {
+        userProgress = await UserProgress.findOne({
+          userId,
+          moduleId: mod._id,
+        }).select('status progressPercentage score completedQuestions totalQuestions');
+      }
+
+      return {
+        _id: mod._id,
+        title: mod.title,
+        description: mod.description,
+        thumbnailImage: mod.thumbnailImage,
+        totalQuestions: mod.questions ? mod.questions.length : 0,
+        status: mod.status,
+        userProgress: userProgress
+          ? {
+            status: userProgress.status,
+            progressPercentage: userProgress.progressPercentage,
+            score: userProgress.score,
+            completedQuestions: userProgress.completedQuestions,
+            totalQuestions: userProgress.totalQuestions,
+          }
+          : {
+            status: 'not_started',
+            progressPercentage: 0,
+            score: 0,
+            completedQuestions: 0,
+            totalQuestions: mod.questions ? mod.questions.length : 0,
+          },
+      };
+    })
+  );
+
   return {
     ...topicObj,
-    modules: topicObj.moduleIds,
+    modules: modulesWithProgress,
     moduleIds: undefined,
-    moduleCount: Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds.length : 0,
+    moduleCount: modulesWithProgress.length,
   };
 };
 

@@ -38,7 +38,7 @@ router.get(
 
 router.get(
   '/:id',
-  auth(USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.company),
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.company,USER_ROLE.user,USER_ROLE.guest),
   TrainingControllers.getSingleTraining,
 );
 
