@@ -132,10 +132,10 @@ const verifyOTPForRegistration = async (identifier: string, otp: string) => {
   if (user.role === 'company') {
     jwtPayload.companyId = user._id.toString();
   }
-  return { 
+  return {
     accessToken: createToken(jwtPayload, config.jwt_access_secret!, config.jwt_access_expires_in!),
     refreshToken: createToken(jwtPayload, config.jwt_refresh_secret!, config.jwt_refresh_expires_in!),
-    user 
+    user
   };
 };
 
@@ -146,7 +146,7 @@ const verifyOTPForRegistration = async (identifier: string, otp: string) => {
 // ─────────────────────────────────────────────
 const loginUser = async (payload: { identifier: string; password: string; fcmToken?: string }) => {
   const user = await User.findOne({ $or: [{ email: payload.identifier }, { phone: payload.identifier }] }).select('+password');
-  if (!user || user.isDeleted || user.status === 'blocked' || user.status === 'inactive' || user.status === 'suspended' || !user.isOtpVerified) 
+  if (!user || user.isDeleted || user.status === 'blocked' || user.status === 'inactive' || user.status === 'suspended' || !user.isOtpVerified)
     throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid credentials or account not verified');
 
   const isMatch = await user.isPasswordMatched(payload.password, user.password!);
@@ -464,26 +464,10 @@ const qrCodeLogin = async (payload: {
 // ---------------------------------------
 
 const resendOTP = async (identifier: string) => {
-  const user = await User.findOne({ 
-    $or: [{ email: identifier }, { phone: identifier }] 
+  const user = await User.findOne({
+    $or: [{ email: identifier }, { phone: identifier }]
   }).select('+otp +otpExpires');
-  
-  if (!user) throw new AppError(httpStatus.NOT_FOUND, 'User not found');
 
-  const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  user.otp = plainOtp; 
-  user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
-  await user.save();
-
-  await sendOtpToUser(user, plainOtp, "Your New Verification Code",identifier);
-  return { message: 'Verification code resent successfully' };
-};
-
-const forgotPass = async (identifier: string) => {
-  const user = await User.findOne({ 
-    $or: [{ email: identifier }, { phone: identifier }] 
-  }).select('+otp +otpExpires');
-  
   if (!user) throw new AppError(httpStatus.NOT_FOUND, 'User not found');
 
   const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -491,17 +475,33 @@ const forgotPass = async (identifier: string) => {
   user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
 
-  await sendOtpToUser(user, plainOtp, "Password Reset OTP",identifier);
+  await sendOtpToUser(user, plainOtp, "Your New Verification Code", identifier);
+  return { message: 'Verification code resent successfully' };
+};
+
+const forgotPass = async (identifier: string) => {
+  const user = await User.findOne({
+    $or: [{ email: identifier }, { phone: identifier }]
+  }).select('+otp +otpExpires');
+
+  if (!user) throw new AppError(httpStatus.NOT_FOUND, 'User not found');
+
+  const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  user.otp = plainOtp;
+  user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
+  await user.save();
+
+  await sendOtpToUser(user, plainOtp, "Password Reset OTP", identifier);
   return { message: 'Reset OTP sent successfully' };
 };
 
 
 const resetPassword = async (payload: TResetPassword) => {
   const { identifier, otp, newPassword } = payload;
-  
- 
-  const user = await User.findOne({ 
-    $or: [{ phone: identifier }, { email: identifier }] 
+
+
+  const user = await User.findOne({
+    $or: [{ phone: identifier }, { email: identifier }]
   }).select('+otp +otpExpires');
 
   if (!user) throw new AppError(httpStatus.NOT_FOUND, 'User not found');
@@ -576,7 +576,7 @@ const changePassword = async (userId: string, payload: any) => {
 
 const refreshToken = async (token: string) => {
   const decoded = verifyToken(token, config.jwt_refresh_secret!) as any;
-  
+
   // Guest token refresh — no DB check needed
   if (decoded.role === 'guest') {
     const jwtPayload = { role: 'guest', companyId: decoded.companyId, teamId: decoded.teamId, authType: 'anonymous' };

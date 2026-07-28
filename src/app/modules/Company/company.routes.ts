@@ -45,7 +45,7 @@ router.patch(
 router.patch(
   '/:id/branding',
   auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),
-  upload.fields([                                     
+  upload.fields([
     { name: 'logo', maxCount: 1 },
     { name: 'video', maxCount: 1 },
   ]) as any,

@@ -20,7 +20,7 @@ const questionSchema = new Schema(
       ],
       required: true,
     },
-    content: { type: String, required: true },
+    content: { type: String },
     image: { type: String },
     explanation: { type: String },
     isScored: { type: Boolean, default: true },

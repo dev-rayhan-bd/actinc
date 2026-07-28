@@ -139,6 +139,12 @@ const updateTrainingInDB = async (id: string, payload: any) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
   }
 
+  if (payload.authType && payload.authType !== training.authType) {
+    const baseUrl = config.frontend_url || config.server_url || 'http://localhost:3000';
+    const joinUrl = `${baseUrl}/training/join/${training._id}?authType=${payload.authType}`;
+    payload.qrCodeUrl = await QRCode.toDataURL(joinUrl);
+  }
+
   const result = await Training.findByIdAndUpdate(id, payload, {
     new: true,
     runValidators: true,
