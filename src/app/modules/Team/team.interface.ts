@@ -3,7 +3,7 @@ import { Model, Types } from 'mongoose';
 export interface TTeam {
   name: string;
   companyId: Types.ObjectId;
-  passcode: string;
+  passcode?: string;
   qrVersion: number;
 }
 

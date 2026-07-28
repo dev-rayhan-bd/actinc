@@ -33,7 +33,7 @@ const generateShareLinkInDB = async (
   });
 
   const baseUrl = config.frontend_url || config.server_url || 'http://localhost:3000';
-  const shareLink = `${baseUrl}/training/${trainingId}/join/${token}`;
+  const shareLink = `${baseUrl}/training/${trainingId}/join/${token}?authType=${training.authType}`;
 
   return {
     token: invite.token,
@@ -105,7 +105,6 @@ const getTrainingByTokenFromDB = async (token: string) => {
 
   return {
     ...trainingObj,
-    authType: 'guest', // Force frontend to show guest login screen
     topics: topics.map((topic) => {
       const topicObj = topic.toObject();
       return {
