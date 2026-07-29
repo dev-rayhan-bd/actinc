@@ -179,9 +179,18 @@ const duplicateTrainingInDB = async (trainingId: string, newTitle: string, userI
     title: newTitle,
     description: original.description,
     thumbnailImage: original.thumbnailImage,
+    authType: original.authType,
+    passcode: original.passcode,
+    companyId: original.companyId,
+    teamId: original.teamId,
     status: 'draft',
     createdBy: userId,
   });
+
+  const baseUrl = config.frontend_url || config.server_url || 'http://localhost:3000';
+  const joinUrl = `${baseUrl}/training/join/${duplicatedTraining._id}?authType=${duplicatedTraining.authType}`;
+  duplicatedTraining.qrCodeUrl = await QRCode.toDataURL(joinUrl);
+  await duplicatedTraining.save();
 
   // 2. Fetch Topics
   const topics = await Topic.find({ trainingId, isDeleted: false }).sort({ order: 1 }).lean();
