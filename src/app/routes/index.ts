@@ -14,6 +14,7 @@ import { ModuleRoutes } from '../modules/Module/module.routes';
 import { DashboardRoutes } from '../modules/Dashboard/dashboard.routes';
 import { UserProgressRoutes } from '../modules/UserProgress/userProgress.routes';
 import { TrainingRoutes } from '../modules/Training/training.routes';
+import { FeaturedTrainingRoutes } from '../modules/FeaturedTraining/featuredTraining.routes';
 
 
 const router = Router();
@@ -56,6 +57,7 @@ const moduleRoutes = [
   { path: '/dashboard', route: DashboardRoutes },
   { path: '/user-progress', route: UserProgressRoutes },
   { path: '/training', route: TrainingRoutes },
+  { path: '/featured-training', route: FeaturedTrainingRoutes },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
