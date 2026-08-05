@@ -2,6 +2,7 @@ import httpStatus from 'http-status';
 import catchAsync from '../../utils/catchAsync';
 import sendResponse from '../../utils/sendResponse';
 import { FeaturedTrainingServices } from './featuredTraining.services';
+import { User } from '../User/user.model';
 
 const createFeaturedTraining = catchAsync(async (req, res) => {
   const companyId = req.user.role === 'company' ? req.user.userId : req.user.companyId;
@@ -21,7 +22,15 @@ const createFeaturedTraining = catchAsync(async (req, res) => {
 });
 
 const getFeaturedTrainings = catchAsync(async (req, res) => {
-  const companyId = req.user.role === 'company' ? req.user.userId : req.user.companyId;
+  let companyId = req.user.role === 'company' ? req.user.userId : req.user.companyId;
+
+  if (!companyId && (req.user.role === 'user' || req.user.role === 'guest')) {
+    const user = await User.findById(req.user.userId);
+    if (user && user.companyId) {
+      companyId = user.companyId.toString();
+    }
+  }
+
   const result = await FeaturedTrainingServices.getCompanyFeaturedTrainings(companyId, req.user.role);
 
   sendResponse(res, {
