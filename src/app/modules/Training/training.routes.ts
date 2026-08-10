@@ -153,6 +153,20 @@ router.post(
   TrainingInviteControllers.sendInvite,
 );
 
+// ── Get Invitations List ──
+router.get(
+  '/:id/invitations',
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.company),
+  TrainingInviteControllers.getInvitations,
+);
+
+// ── Resend Invitation Reminder ──
+router.post(
+  '/invitations/:inviteId/resend',
+  auth(USER_ROLE.admin, USER_ROLE.superAdmin, USER_ROLE.company),
+  TrainingInviteControllers.resendInvite,
+);
+
 // ── Authenticate for Training (Public Route) ──
 router.post(
   '/:id/authenticate',

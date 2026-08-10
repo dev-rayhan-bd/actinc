@@ -51,8 +51,41 @@ const joinByToken = catchAsync(async (req, res) => {
   });
 });
 
+// ── Get Invitations for a Training ──
+const getInvitations = catchAsync(async (req, res) => {
+  const companyId = req.user.role === 'company' ? req.user.userId : req.user.companyId;
+  const result = await TrainingInviteServices.getInvitationsByTrainingFromDB(
+    req.params.id as string,
+    companyId,
+    req.user.role,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Invitations retrieved successfully',
+    data: result,
+  });
+});
+
+// ── Resend Invite ──
+const resendInvite = catchAsync(async (req, res) => {
+  const result = await TrainingInviteServices.resendTrainingInviteByEmail(
+    req.params.inviteId as string,
+  );
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Reminder email sent successfully',
+    data: result,
+  });
+});
+
 export const TrainingInviteControllers = {
   generateShareLink,
   sendInvite,
   joinByToken,
+  getInvitations,
+  resendInvite,
 };
