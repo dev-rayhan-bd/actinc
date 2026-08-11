@@ -756,6 +756,7 @@ const authenticateTrainingInDB = async (
     if (!invite || invite.expiresAt < new Date()) {
       throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid or expired invite token');
     }
+    
     isInviteTokenValid = true;
   }
 
@@ -778,6 +779,27 @@ const authenticateTrainingInDB = async (
         role: 'user',
         authType: 'email',
         companyId: training.companyId,
+      });
+    }
+
+    // Tracking logic: ensure they have a TrainingInvite record so they show up in the dashboard
+    const { TrainingInvite } = await import('../TrainingInvite/trainingInvite.model');
+    let userInvite = await TrainingInvite.findOne({ trainingId: training._id, email: payload.identifier });
+    
+    if (userInvite) {
+      userInvite.isUsed = true;
+      await userInvite.save();
+    } else {
+      // Create a new invite record for this user so they appear in tracking
+      const crypto = await import('crypto');
+      await TrainingInvite.create({
+        token: payload.inviteToken || crypto.randomBytes(32).toString('hex'),
+        trainingId: training._id,
+        companyId: training.companyId,
+        email: payload.identifier,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+        isUsed: true,
+        createdBy: user._id,
       });
     }
   } else if (payload.authType === 'employeeId') {
