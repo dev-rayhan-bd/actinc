@@ -16,7 +16,7 @@ const mcqQuestionSchema = z.object({
 const swipeQuestionSchema = z.object({
   id: z.string(),
   type: z.literal('Swipe'),
-  content: z.string().min(1, 'Question content is required'),
+  content: z.string().optional(),
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
