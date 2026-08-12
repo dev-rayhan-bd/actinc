@@ -9,6 +9,7 @@ const mcqQuestionSchema = z.object({
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
+  colorCode: z.string().optional(),
   options: z.array(z.string()).min(4, 'MCQ must have at least 4 options').optional(),
   correctAnswer: z.string().optional(),
 });
@@ -20,6 +21,7 @@ const swipeQuestionSchema = z.object({
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
+  colorCode: z.string().optional(),
   leftLabel: z.string().min(1, 'leftLabel is required'),
   rightLabel: z.string().min(1, 'rightLabel is required'),
   correctDirection: z.enum(['left', 'right']),
@@ -32,6 +34,7 @@ const orderingQuestionSchema = z.object({
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
+  colorCode: z.string().optional(),
   items: z.array(z.string()).min(2, 'Ordering must have at least 2 items'),
 });
 
@@ -42,6 +45,7 @@ const chatScenarioQuestionSchema = z.object({
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
+  colorCode: z.string().optional(),
   messages: z
     .array(
       z.object({
@@ -61,6 +65,7 @@ const videoQuestionSchema = z.object({
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
+  colorCode: z.string().optional(),
   videoUrl: z.string().url('videoUrl must be a valid URL'),
 });
 
@@ -71,6 +76,7 @@ const ratingQuestionSchema = z.object({
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
+  colorCode: z.string().optional(),
   scale: z.number().int().min(2).max(10, 'Scale must be between 2 and 10'),
 });
 
@@ -81,6 +87,7 @@ const freeInputQuestionSchema = z.object({
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
+  colorCode: z.string().optional(),
 });
 
 const informationQuestionSchema = z.object({
@@ -90,6 +97,7 @@ const informationQuestionSchema = z.object({
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
+  colorCode: z.string().optional(),
 });
 
 const simulatedCallQuestionSchema = z.object({
@@ -99,6 +107,7 @@ const simulatedCallQuestionSchema = z.object({
   image: z.string().optional(),
   explanation: z.string().optional(),
   isScored: z.boolean(),
+  colorCode: z.string().optional(),
   callerName: z.string().min(1, 'Caller name is required'),
   callerPhoto: z.string().optional(),
   postCallVideoUrl: z.string().optional(),
