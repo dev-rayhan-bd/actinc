@@ -3,6 +3,8 @@ import httpStatus from 'http-status';
 import AppError from '../../errors/AppError';
 import { Training, Topic } from '../Training/training.model';
 import { TrainingInvite } from './trainingInvite.model';
+import { User } from '../User/user.model';
+import { UserProgress } from '../UserProgress/userProgress.model';
 import sendEmail from '../../utils/sendEmail';
 import { getEmailTemplate } from '../../utils/emailTemplate';
 import config from '../../config';
@@ -132,7 +134,70 @@ const getInvitationsByTrainingFromDB = async (trainingId: string, companyId?: st
   }
 
   const invites = await TrainingInvite.find(query).sort({ createdAt: -1 });
-  return invites;
+
+  // Get all topic module IDs for this training
+  const topics = await Topic.find({ trainingId, isDeleted: false });
+  const moduleIds: any[] = [];
+  topics.forEach((topic) => {
+    if (Array.isArray(topic.moduleIds)) {
+      topic.moduleIds.forEach((mId) => moduleIds.push(mId));
+    }
+  });
+
+  const invitesWithProgress = await Promise.all(
+    invites.map(async (invite) => {
+      let status: 'not_started' | 'in_progress' | 'completed' = 'not_started';
+      let overallProgressPercentage = 0;
+      let completedModules = 0;
+      let inProgressModules = 0;
+      let notStartedModules = moduleIds.length;
+
+      if (invite.email && moduleIds.length > 0) {
+        const user = await User.findOne({ email: invite.email });
+        if (user) {
+          const progressRecords = await UserProgress.find({
+            userId: user._id,
+            moduleId: { $in: moduleIds },
+          });
+
+          completedModules = progressRecords.filter((p) => p.status === 'completed').length;
+          inProgressModules = progressRecords.filter(
+            (p) =>
+              p.status === 'in_progress' ||
+              ((p.progressPercentage || 0) > 0 && p.status !== 'completed'),
+          ).length;
+
+          notStartedModules = Math.max(0, moduleIds.length - (completedModules + inProgressModules));
+
+          const totalProgressSum = progressRecords.reduce(
+            (sum, p) => sum + (p.progressPercentage || 0),
+            0,
+          );
+          overallProgressPercentage = Math.round(totalProgressSum / moduleIds.length);
+
+          if (completedModules >= moduleIds.length && moduleIds.length > 0) {
+            status = 'completed';
+          } else if (completedModules > 0 || inProgressModules > 0) {
+            status = 'in_progress';
+          }
+        }
+      }
+
+      return {
+        ...invite.toObject(),
+        progress: {
+          status,
+          progressPercentage: overallProgressPercentage,
+          totalModules: moduleIds.length,
+          completedModules,
+          inProgressModules,
+          notStartedModules,
+        },
+      };
+    }),
+  );
+
+  return invitesWithProgress;
 };
 
 // ── Resend Invite by Email ──
@@ -159,18 +224,76 @@ const resendTrainingInviteByEmail = async (inviteId: string) => {
   const baseUrl = config.frontend_url || config.server_url || 'http://localhost:3000';
   const shareLink = `${baseUrl}/training/${training._id}/join/${invite.token}?authType=${training.authType}`;
 
+  // Determine user training progress status
+  let status: 'not_started' | 'in_progress' | 'completed' = 'not_started';
+
+  const user = await User.findOne({ email: invite.email });
+
+  if (user) {
+    const topics = await Topic.find({ trainingId: training._id, isDeleted: false });
+    const moduleIds: any[] = [];
+    topics.forEach((topic) => {
+      if (Array.isArray(topic.moduleIds)) {
+        topic.moduleIds.forEach((mId) => moduleIds.push(mId));
+      }
+    });
+
+    if (moduleIds.length > 0) {
+      const progressRecords = await UserProgress.find({
+        userId: user._id,
+        moduleId: { $in: moduleIds },
+      });
+
+      const completedCount = progressRecords.filter((p) => p.status === 'completed').length;
+      const inProgressCount = progressRecords.filter(
+        (p) =>
+          p.status === 'in_progress' ||
+          ((p.progressPercentage || 0) > 0 && p.status !== 'completed'),
+      ).length;
+
+      if (completedCount >= moduleIds.length && moduleIds.length > 0) {
+        status = 'completed';
+      } else if (inProgressCount > 0 || completedCount > 0) {
+        status = 'in_progress';
+      }
+    }
+  }
+
+  let emailTitle = '';
+  let emailBody = '';
+  let buttonText = '';
+  let emailSubject = '';
+
+  if (status === 'in_progress') {
+    emailSubject = `Reminder: Continue your training - ${training.title}`;
+    emailTitle = 'Reminder: Continue Your Training!';
+    emailBody = `This is a reminder that you have started the training: <strong>${training.title}</strong>, but haven't completed it yet. Click the link below to pick up where you left off and finish your training.`;
+    buttonText = 'Continue Training';
+  } else if (status === 'completed') {
+    emailSubject = `Reminder: Review your training - ${training.title}`;
+    emailTitle = 'Reminder: Review Your Training!';
+    emailBody = `This is a reminder regarding your training: <strong>${training.title}</strong>. You have completed all modules, but you can click below to review your training materials.`;
+    buttonText = 'Review Training';
+  } else {
+    // not_started
+    emailSubject = `Reminder: Please start your training - ${training.title}`;
+    emailTitle = 'Reminder: Please Start Your Training!';
+    emailBody = `This is a reminder that you've been invited to complete the training: <strong>${training.title}</strong>, but you haven't started yet. Click the link below to get started.`;
+    buttonText = 'Start Training';
+  }
+
   const html = getEmailTemplate({
     userName: invite.email,
-    title: 'Reminder: You\'re Invited to a Training!',
-    body: `This is a reminder that you've been invited to experience the training: <strong>${training.title}</strong>. Click the link below to get started.`,
-    buttonText: 'Join Training',
+    title: emailTitle,
+    body: emailBody,
+    buttonText: buttonText,
     buttonLink: shareLink,
     codeExpiry: `This link expires on ${invite.expiresAt.toLocaleDateString()}.`,
   });
 
   await sendEmail({
     to: invite.email,
-    subject: `Reminder: Training Invitation for ${training.title}`,
+    subject: emailSubject,
     html,
   });
 
