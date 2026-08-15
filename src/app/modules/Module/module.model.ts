@@ -25,6 +25,7 @@ const questionSchema = new Schema(
     explanation: { type: String },
     isScored: { type: Boolean, default: true },
     colorCode: { type: String },
+    feedback: { type: String },
 
     // MCQ
     options: [{ type: String }],

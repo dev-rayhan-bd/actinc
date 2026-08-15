@@ -23,6 +23,7 @@ interface IQuestionBase {
   explanation?: string;
   isScored: boolean;
   colorCode?: string;
+  feedback?: string;
 }
 
 // ── Type-Specific Question Variants ──
