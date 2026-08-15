@@ -3,14 +3,26 @@ import { Module } from '../Module/module.model';
 
 // ── Get Platform Overview Stats ──
 const getPlatformStats = async () => {
-  const [totalCompanies, activeEmployees, totalModules] = await Promise.all([
-    User.countDocuments({ role: 'company', isDeleted: false }),
-    User.countDocuments({ role: { $in: ['user', 'guest'] }, isDeleted: false, status: 'active' }),
-    Module.countDocuments({ isDeleted: false }),
+  // 1. Get all registered, non-deleted companies
+  const activeCompanies = await User.find({ role: 'company', isDeleted: false }).select('_id');
+  const activeCompanyIds = activeCompanies.map((c) => c._id);
+
+  // 2. Count employees and modules linked to registered active companies
+  const [activeEmployees, totalModules] = await Promise.all([
+    User.countDocuments({
+      role: { $in: ['user', 'guest'] },
+      isDeleted: false,
+      status: 'active',
+      companyId: { $in: activeCompanyIds },
+    }),
+    Module.countDocuments({
+      isDeleted: false,
+      companyId: { $in: activeCompanyIds },
+    }),
   ]);
 
   return {
-    totalClientCompanies: totalCompanies,
+    totalClientCompanies: activeCompanies.length,
     activeEmployees,
     totalModules,
   };

@@ -199,23 +199,28 @@ const getDropdownCompaniesFromDB = async () => {
 };
 
 const deleteCompanyFromDB = async (id: string) => {
-  const company = await User.findOneAndUpdate(
-    { _id: id, ...COMPANY_FILTER },
-    { isDeleted: true },
-    { new: true },
-  );
+  const company = await User.findOne({ _id: id, role: 'company' });
   if (!company) {
     throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
   }
 
-  // Soft-delete all related employee User accounts
-  await User.updateMany(
-    { companyId: company._id },
-    { isDeleted: true, status: 'blocked' },
-  );
+  // Hard-delete all related employee User accounts
+  await User.deleteMany({ companyId: company._id });
 
-  // Hard-delete all related teams (since Team model doesn't have isDeleted)
+  // Hard-delete all related teams
   await Team.deleteMany({ companyId: company._id });
+
+  // Hard-delete all related modules
+  await Module.deleteMany({ companyId: company._id });
+
+  // Hard-delete all related user progress records
+  await UserProgress.deleteMany({ companyId: company._id });
+
+  // Hard-delete all related behavioral assessments
+  await BehavioralAssessment.deleteMany({ companyId: company._id });
+
+  // Hard-delete the company User account itself
+  await User.findByIdAndDelete(id);
 
   return company;
 };
