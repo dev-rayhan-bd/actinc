@@ -17,7 +17,6 @@ const getPlatformStats = async () => {
     }),
     Module.countDocuments({
       isDeleted: false,
-      companyId: { $in: activeCompanyIds },
     }),
   ]);
 
