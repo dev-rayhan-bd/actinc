@@ -21,13 +21,19 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
+            source ~/.bashrc 2>/dev/null || true
+            source ~/.profile 2>/dev/null || true
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-            export PATH=$PATH:/usr/local/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:$HOME/.yarn/bin
+            export PATH=$PATH:/usr/local/bin:/usr/bin:$HOME/.nvm/versions/node/$(ls $HOME/.nvm/versions/node 2>/dev/null | tail -n 1)/bin:$HOME/.yarn/bin:$HOME/.npm-global/bin
 
             cd ~/actinc/backend || cd /var/www/actinc
             git fetch origin main
             git reset --hard origin/main
-            yarn install --frozen-lockfile || yarn install
-            yarn build
-            pm2 restart actinc-backend || pm2 restart all
+
+            YARN_CMD=$(command -v yarn || command -v npm)
+            PM2_CMD=$(command -v pm2 || echo "pm2")
+
+            $YARN_CMD install
+            $YARN_CMD run build || $YARN_CMD build
+            $PM2_CMD restart actinc-backend || $PM2_CMD restart all
