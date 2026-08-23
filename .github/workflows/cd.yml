@@ -32,7 +32,7 @@ jobs:
             git reset --hard origin/main
 
             YARN_CMD=$(command -v yarn || command -v npm)
-            PM2_CMD=$(command -v pm2 || echo "pm2")
+            PM2_CMD=$(command -v pm2 || find $HOME/.nvm /usr /home -name pm2 2>/dev/null | head -n 1 || echo "pm2")
 
             $YARN_CMD install
             $YARN_CMD run build || $YARN_CMD build
