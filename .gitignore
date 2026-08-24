@@ -3,9 +3,11 @@ dist
 .env
 .vercel
 
-
-
-firebase-admin-config.json
+# Temp & Log files
+*.log
+node_out.txt
+ts_errors.txt
+ts_out.txt
 temp_auto_push.bat
 temp_interactive_push.bat
-
+firebase-admin-config.json
