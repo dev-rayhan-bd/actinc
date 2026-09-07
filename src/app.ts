@@ -55,7 +55,10 @@ app.use(
       'http://localhost:5174',
       'http://localhost:3000',
       'https://bink-eta.vercel.app',
-      'https://binksanders-website.vercel.app'
+      'https://binksanders-website.vercel.app',
+      'https://borging.app',
+      'https://www.borging.app'
+
 
     ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
