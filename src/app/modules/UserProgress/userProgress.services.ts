@@ -254,6 +254,9 @@ const submitAnswerInDB = async (
     ) {
       isCorrect = true;
       qScore = 100;
+    } else if (!question.correctDirection) {
+      isCorrect = true;
+      qScore = 100;
     }
   } else if (question.type === 'Ordering') {
     if (
