@@ -30,7 +30,7 @@ const swipeQuestionSchema = z.object({
   ...baseQuestionSchema,
   leftLabel: z.string().min(1, 'leftLabel is required'),
   rightLabel: z.string().min(1, 'rightLabel is required'),
-  correctDirection: z.enum(['left', 'right']),
+  correctDirection: z.enum(['left', 'right']).optional(),
 });
 
 const orderingQuestionSchema = z.object({

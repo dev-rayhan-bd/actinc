@@ -37,7 +37,7 @@ export interface ISwipeQuestion extends IQuestionBase {
   type: 'Swipe';
   leftLabel: string;
   rightLabel: string;
-  correctDirection: 'left' | 'right';
+  correctDirection?: 'left' | 'right';
 }
 
 export interface IOrderingQuestion extends IQuestionBase {
