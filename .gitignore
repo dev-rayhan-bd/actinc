@@ -11,3 +11,5 @@ ts_out.txt
 temp_auto_push.bat
 temp_interactive_push.bat
 firebase-admin-config.json
+.gitignore
+branch_structure.json
