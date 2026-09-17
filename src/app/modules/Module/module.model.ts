@@ -46,6 +46,16 @@ const questionSchema = new Schema(
         text: { type: String },
       },
     ],
+    chatSteps: [
+      {
+        stepId: { type: String },
+        sender: { type: String },
+        text: { type: String },
+        options: [{ type: String }],
+        correctAnswer: { type: String },
+        feedback: { type: String },
+      },
+    ],
 
     // Video
     videoUrl: { type: String },

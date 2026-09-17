@@ -45,11 +45,21 @@ export interface IOrderingQuestion extends IQuestionBase {
   items: string[];
 }
 
-export interface IChatScenarioQuestion extends IQuestionBase {
-  type: 'Chat Scenario';
-  messages: { sender: string; text: string }[];
+export interface IChatStep {
+  stepId?: string;
+  sender: string;
+  text: string;
   options?: string[];
   correctAnswer?: string;
+  feedback?: string;
+}
+
+export interface IChatScenarioQuestion extends IQuestionBase {
+  type: 'Chat Scenario';
+  messages?: { sender: string; text: string }[];
+  options?: string[];
+  correctAnswer?: string;
+  chatSteps?: IChatStep[];
 }
 
 export interface IVideoQuestion extends IQuestionBase {

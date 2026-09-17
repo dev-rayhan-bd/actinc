@@ -129,6 +129,27 @@ const downloadCompanyReportPDF = catchAsync(async (req, res) => {
   res.send(pdfBuffer);
 });
 
+const getPublicBranding = catchAsync(async (req, res) => {
+  const result = await CompanyServices.getPublicCompanyBrandingFromDB(req.params.idOrSlug as string);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Public company branding retrieved successfully',
+    data: result,
+  });
+});
+
+const getPublicBrandingByEmail = catchAsync(async (req, res) => {
+  const email = (req.body.email || req.query.email) as string;
+  const result = await CompanyServices.getPublicCompanyBrandingByEmailFromDB(email);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: 'Public company branding retrieved successfully by email',
+    data: result,
+  });
+});
+
 export const CompanyControllers = {
   createCompany,
   getAllCompanies,
@@ -140,4 +161,6 @@ export const CompanyControllers = {
   getDropdownCompanies,
   getCompanyDetails,
   downloadCompanyReportPDF,
+  getPublicBranding,
+  getPublicBrandingByEmail,
 };

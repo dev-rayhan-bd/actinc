@@ -552,6 +552,65 @@ const generateCompanyPDFReportFromDB = async (companyId: string): Promise<Buffer
   });
 };
 
+// ── Public Branding APIs (No auth required for login/invite screens) ──
+const getPublicCompanyBrandingFromDB = async (identifier: string) => {
+  const isObjectId = /^[0-9a-fA-F]{24}$/.test(identifier);
+  const query: any = isObjectId
+    ? { _id: identifier, role: 'company', isDeleted: false }
+    : { slug: identifier, role: 'company', isDeleted: false };
+
+  const company = await User.findOne(query).select('_id firstName slug image branding address').lean();
+  if (!company) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Company not found');
+  }
+
+  const logoUrl = (company as any).branding?.logo || company.image || '';
+
+  return {
+    companyId: (company as any)._id,
+    name: company.firstName,
+    slug: company.slug,
+    logo: logoUrl,
+    primaryColor: (company as any).branding?.primaryColor || '#ec4899',
+    secondaryColor: (company as any).branding?.secondaryColor || '',
+    branding: (company as any).branding || {},
+  };
+};
+
+const getPublicCompanyBrandingByEmailFromDB = async (email: string) => {
+  if (!email) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Email is required');
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail }).select('companyId role').lean();
+  let companyId = (user as any)?.companyId;
+
+  if (user && user.role === 'company') {
+    companyId = (user as any)._id;
+  }
+
+  if (!companyId) {
+    const domain = normalizedEmail.split('@')[1];
+    if (domain) {
+      const companyUser = await User.findOne({
+        email: { $regex: `@${domain}$`, $options: 'i' },
+        role: 'company',
+        isDeleted: false,
+      }).select('_id').lean();
+      if (companyUser) {
+        companyId = (companyUser as any)._id;
+      }
+    }
+  }
+
+  if (!companyId) {
+    throw new AppError(httpStatus.NOT_FOUND, 'No company associated with this email');
+  }
+
+  return getPublicCompanyBrandingFromDB(companyId.toString());
+};
+
 export const CompanyServices = {
   createCompanyIntoDB,
   getAllCompaniesFromDB,
@@ -563,4 +622,6 @@ export const CompanyServices = {
   getDropdownCompaniesFromDB,
   getCompanyDetailsFromDB,
   generateCompanyPDFReportFromDB,
+  getPublicCompanyBrandingFromDB,
+  getPublicCompanyBrandingByEmailFromDB,
 };

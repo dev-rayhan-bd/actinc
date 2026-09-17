@@ -16,6 +16,7 @@ import { UserProgressRoutes } from '../modules/UserProgress/userProgress.routes'
 import { TrainingRoutes } from '../modules/Training/training.routes';
 import { FeaturedTrainingRoutes } from '../modules/FeaturedTraining/featuredTraining.routes';
 import { AnalyticsRoutes } from '../modules/Analytics/analytics.routes';
+import { TrainingInviteRoutes } from '../modules/TrainingInvite/trainingInvite.routes';
 
 
 const router = Router();
@@ -58,6 +59,7 @@ const moduleRoutes = [
   { path: '/dashboard', route: DashboardRoutes },
   { path: '/user-progress', route: UserProgressRoutes },
   { path: '/training', route: TrainingRoutes },
+  { path: '/training-invite', route: TrainingInviteRoutes },
   { path: '/featured-training', route: FeaturedTrainingRoutes },
   { path: '/analytics', route: AnalyticsRoutes },
 ];
