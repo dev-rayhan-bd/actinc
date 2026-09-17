@@ -28,6 +28,17 @@ router.get(
   CompanyControllers.getDropdownCompanies,
 );
 
+// ── Public Branding Routes (NO AUTH REQUIRED FOR LOGIN/INVITE SCREENS) ──
+router.get(
+  '/public-branding/:idOrSlug',
+  CompanyControllers.getPublicBranding,
+);
+
+router.post(
+  '/public-branding-by-email',
+  CompanyControllers.getPublicBrandingByEmail,
+);
+
 router.get(
   '/:id',
   auth(USER_ROLE.superAdmin, USER_ROLE.admin, USER_ROLE.company),

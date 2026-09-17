@@ -45,6 +45,15 @@ const orderingQuestionSchema = z.object({
   items: z.array(z.string()).min(2, 'Ordering must have at least 2 items'),
 });
 
+const chatStepSchema = z.object({
+  stepId: z.string().optional(),
+  sender: z.string().min(1, 'sender is required'),
+  text: z.string().min(1, 'text is required'),
+  options: z.array(z.string()).optional(),
+  correctAnswer: z.string().optional(),
+  feedback: z.string().optional(),
+});
+
 const chatScenarioQuestionSchema = z.object({
   id: z.string(),
   type: z.literal('Chat Scenario'),
@@ -61,9 +70,10 @@ const chatScenarioQuestionSchema = z.object({
         text: z.string().min(1, 'text is required'),
       }),
     )
-    .min(1, 'Chat Scenario must have at least 1 message'),
+    .optional(),
   options: z.array(z.string()).optional(),
   correctAnswer: z.string().optional(),
+  chatSteps: z.array(chatStepSchema).optional(),
 });
 
 const videoQuestionSchema = z.object({

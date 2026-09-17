@@ -5,6 +5,7 @@ import { Training, Topic } from '../Training/training.model';
 import { TrainingInvite } from './trainingInvite.model';
 import { User } from '../User/user.model';
 import { UserProgress } from '../UserProgress/userProgress.model';
+import { Module } from '../Module/module.model';
 import sendEmail from '../../utils/sendEmail';
 import { getEmailTemplate } from '../../utils/emailTemplate';
 import config from '../../config';
