@@ -9,7 +9,7 @@ export interface IUserProgress {
   moduleId: Types.ObjectId;
   status: TProgressStatus;
   progressPercentage: number; // 0-100
-  score?: number; // 0-100, only for scored modules
+  score?: number | null; // 0-100, null for unscored modules
   completedQuestions: number;
   totalQuestions: number;
   startedAt?: Date;

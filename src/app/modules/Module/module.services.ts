@@ -52,9 +52,10 @@ const getModuleByIdFromDB = async (id: string) => {
 
   const moduleObj = result.toObject();
   const scoredQuestions = moduleObj.questions.filter((q: any) => q.isScored !== false);
-  const score = scoredQuestions.length * 100;
+  const hasScoredQuestions = scoredQuestions.length > 0;
+  const score = hasScoredQuestions ? scoredQuestions.length * 100 : null;
 
-  return { ...moduleObj, score };
+  return { ...moduleObj, score, hasScoredQuestions };
 };
 
 // ── Update Module ──

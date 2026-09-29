@@ -335,17 +335,19 @@ const submitAnswerInDB = async (
       totalQuestions > 0 ? Math.min(100, Math.round((completedQuestions / totalQuestions) * 100)) : 100;
 
     // Calculate score for scored questions
+    const hasScoredQuestionsInModule = module.questions.some((q: any) => q.isScored !== false);
     const scoredAnswers = progress.answers.filter((a: any) => {
       const q: any = module.questions.find((qItem: any) => qItem.id === a.questionId);
       return q ? q.isScored !== false : true;
     });
 
-    const avgScore =
-      scoredAnswers.length > 0
-        ? Math.round(
-            scoredAnswers.reduce((sum: number, a: any) => sum + (a.score || 0), 0) / scoredAnswers.length,
-          )
-        : 100;
+    const avgScore = hasScoredQuestionsInModule
+      ? (scoredAnswers.length > 0
+          ? Math.round(
+              scoredAnswers.reduce((sum: number, a: any) => sum + (a.score || 0), 0) / scoredAnswers.length,
+            )
+          : 0)
+      : null;
 
     progress.totalQuestions = totalQuestions;
     progress.completedQuestions = completedQuestions;
@@ -363,7 +365,7 @@ const submitAnswerInDB = async (
       questionId,
       isCorrect,
       score: qScore,
-      correctAnswer: question.correctAnswer || question.correctDirection,
+      correctAnswer: question.isScored !== false ? (question.correctAnswer || question.correctDirection) : undefined,
       explanation: question.explanation || '',
       completedQuestions,
       totalQuestions,
@@ -374,16 +376,17 @@ const submitAnswerInDB = async (
   }
 
   // Transient response for anonymous guest users
+  const hasScoredQuestionsInModule = module.questions.some((q: any) => q.isScored !== false);
   return {
     questionId,
     isCorrect,
     score: qScore,
-    correctAnswer: question.correctAnswer || question.correctDirection,
+    correctAnswer: question.isScored !== false ? (question.correctAnswer || question.correctDirection) : undefined,
     explanation: question.explanation || '',
     completedQuestions: 1,
     totalQuestions: module.questions.length,
     progressPercentage: Math.round((1 / module.questions.length) * 100),
-    moduleScore: qScore,
+    moduleScore: hasScoredQuestionsInModule ? qScore : null,
     moduleStatus: 'in_progress',
   };
 };
@@ -399,6 +402,8 @@ const completeModuleInDB = async (
   if (!module) {
     throw new AppError(httpStatus.NOT_FOUND, 'Module not found');
   }
+
+  const hasScoredQuestionsInModule = module.questions.some((q: any) => q.isScored !== false);
 
   if (userId && userId !== 'guest') {
     const user = await User.findById(userId);
@@ -418,7 +423,9 @@ const completeModuleInDB = async (
     progress.completedQuestions = module.questions.length;
     progress.totalQuestions = module.questions.length;
     progress.completedAt = new Date();
-    if (progress.score === undefined || progress.score === null) progress.score = 100;
+    if (progress.score === undefined || progress.score === null) {
+      progress.score = hasScoredQuestionsInModule ? 100 : null;
+    }
 
     await progress.save();
     return progress;
@@ -434,7 +441,7 @@ const completeModuleInDB = async (
     completedQuestions: module.questions.length,
     totalQuestions: module.questions.length,
     completedAt: new Date(),
-    score: 100,
+    score: hasScoredQuestionsInModule ? 100 : null,
   };
 };
 
@@ -445,10 +452,10 @@ const getTeamPerformanceFromDB = async (teamId: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
   }
 
-  const teamUsers = await User.find({ 
-    teamId, 
-    role: { $in: ['user', 'guest'] }, 
-    isDeleted: false 
+  const teamUsers = await User.find({
+    teamId,
+    role: { $in: ['user', 'guest'] },
+    isDeleted: false
   }).select(
     'firstName lastName email image role',
   );
@@ -475,9 +482,9 @@ const getTeamPerformanceFromDB = async (teamId: string) => {
     const userAvgProgress =
       totalAssignedModules > 0
         ? Math.round(
-            userProgresses.reduce((sum, p) => sum + p.progressPercentage, 0) /
-              totalAssignedModules,
-          )
+          userProgresses.reduce((sum, p) => sum + p.progressPercentage, 0) /
+          totalAssignedModules,
+        )
         : 0;
 
     const scored = userProgresses.filter((p) => p.score !== undefined && p.score !== null);
@@ -534,10 +541,10 @@ const getCompanyPerformanceFromDB = async (companyId: string) => {
   }
 
   const teams = await Team.find({ companyId });
-  const companyUsers = await User.find({ 
-    companyId, 
-    role: { $in: ['user', 'guest'] }, 
-    isDeleted: false 
+  const companyUsers = await User.find({
+    companyId,
+    role: { $in: ['user', 'guest'] },
+    isDeleted: false
   });
   const companyUserIds = companyUsers.map((u) => u._id);
 
@@ -572,9 +579,9 @@ const getCompanyPerformanceFromDB = async (companyId: string) => {
       const tAvgProgress =
         tTotalAssignments > 0
           ? Math.round(
-              (tProgressRecords.reduce((sum, p) => sum + p.progressPercentage, 0) /
-                tTotalAssignments),
-            )
+            (tProgressRecords.reduce((sum, p) => sum + p.progressPercentage, 0) /
+              tTotalAssignments),
+          )
           : 0;
 
       const scored = tProgressRecords.filter((p) => p.score !== undefined && p.score !== null);
