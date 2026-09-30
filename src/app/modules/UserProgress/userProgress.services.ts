@@ -268,15 +268,54 @@ const submitAnswerInDB = async (
       qScore = 100;
     }
   } else if (question.type === 'Chat Scenario') {
-    if (
-      question.correctAnswer &&
-      String(answer).trim().toLowerCase() === String(question.correctAnswer).trim().toLowerCase()
-    ) {
-      isCorrect = true;
-      qScore = 100;
-    } else if (!question.correctAnswer) {
-      isCorrect = true;
-      qScore = 100;
+    // ── New Branching Chat Scoring ──
+    // answer format for branching: { stepId: string, optionId: string } OR array of such objects
+    // answer format for legacy: string (matched against correctAnswer)
+    if (question.chatSteps && question.chatSteps.length > 0 && typeof answer === 'object' && !Array.isArray(answer)) {
+      // Single step answer: { stepId, optionId }
+      const step: any = question.chatSteps.find((s: any) => s.stepId === answer.stepId);
+      if (step) {
+        const selectedOption: any = step.options?.find((o: any) => o.optionId === answer.optionId);
+        if (selectedOption) {
+          isCorrect = selectedOption.isCorrect === true;
+          qScore = isCorrect ? 100 : 0;
+        }
+      }
+    } else if (question.chatSteps && question.chatSteps.length > 0 && Array.isArray(answer)) {
+      // Multi-step answers: [{ stepId, optionId }, ...] — score = average correctness
+      let correctCount = 0;
+      let totalScored = 0;
+      for (const ans of answer) {
+        const step: any = question.chatSteps.find((s: any) => s.stepId === ans.stepId);
+        if (step) {
+          const selectedOption: any = step.options?.find((o: any) => o.optionId === ans.optionId);
+          if (selectedOption) {
+            totalScored++;
+            if (selectedOption.isCorrect === true) {
+              correctCount++;
+            }
+          }
+        }
+      }
+      if (totalScored > 0) {
+        qScore = Math.round((correctCount / totalScored) * 100);
+        isCorrect = correctCount === totalScored;
+      } else {
+        isCorrect = true;
+        qScore = 100;
+      }
+    } else {
+      // Legacy: flat correctAnswer matching
+      if (
+        question.correctAnswer &&
+        String(answer).trim().toLowerCase() === String(question.correctAnswer).trim().toLowerCase()
+      ) {
+        isCorrect = true;
+        qScore = 100;
+      } else if (!question.correctAnswer) {
+        isCorrect = true;
+        qScore = 100;
+      }
     }
   } else {
     // Rating, Video, Free Input

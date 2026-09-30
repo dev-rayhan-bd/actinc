@@ -39,21 +39,36 @@ const questionSchema = new Schema(
     // Ordering
     items: [{ type: String }],
 
-    // Chat Scenario
+    // Chat Scenario — Branching Conversation
+    senderName: { type: String },       // name of the other person
+    senderAvatar: { type: String },     // avatar/photo URL of the other person
+    initialStepId: { type: String },    // which step to start from
+    chatSteps: [
+      {
+        stepId: { type: String, required: true },
+        messages: [
+          {
+            sender: { type: String },
+            text: { type: String },
+            isUser: { type: Boolean, default: false },
+          },
+        ],
+        options: [
+          {
+            optionId: { type: String },
+            text: { type: String },
+            nextStepId: { type: String, default: null },  // branching
+            feedback: { type: String },
+            isCorrect: { type: Boolean, default: false },
+          },
+        ],
+      },
+    ],
+    // Legacy Chat Scenario fields (backward compat)
     messages: [
       {
         sender: { type: String },
         text: { type: String },
-      },
-    ],
-    chatSteps: [
-      {
-        stepId: { type: String },
-        sender: { type: String },
-        text: { type: String },
-        options: [{ type: String }],
-        correctAnswer: { type: String },
-        feedback: { type: String },
       },
     ],
 
