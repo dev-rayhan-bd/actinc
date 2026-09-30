@@ -45,13 +45,26 @@ const orderingQuestionSchema = z.object({
   items: z.array(z.string()).min(2, 'Ordering must have at least 2 items'),
 });
 
-const chatStepSchema = z.object({
-  stepId: z.string().optional(),
-  sender: z.string().min(1, 'sender is required'),
-  text: z.string().min(1, 'text is required'),
-  options: z.array(z.string()).optional(),
-  correctAnswer: z.string().optional(),
+// ── Chat Scenario: Branching Option Schema ──
+const chatStepOptionSchema = z.object({
+  optionId: z.string().min(1, 'optionId is required'),
+  text: z.string().min(1, 'option text is required'),
+  nextStepId: z.string().nullable().optional(),  // null = end of path
   feedback: z.string().optional(),
+  isCorrect: z.boolean().optional().default(false),
+});
+
+// ── Chat Scenario: Conversation Step Schema ──
+const chatStepSchema = z.object({
+  stepId: z.string().min(1, 'stepId is required'),
+  messages: z.array(
+    z.object({
+      sender: z.string().min(1, 'sender is required'),
+      text: z.string().min(1, 'text is required'),
+      isUser: z.boolean().optional().default(false),
+    }),
+  ).min(1, 'At least one message is required per step'),
+  options: z.array(chatStepOptionSchema).optional().default([]),
 });
 
 const chatScenarioQuestionSchema = z.object({
@@ -63,6 +76,12 @@ const chatScenarioQuestionSchema = z.object({
   isScored: z.boolean(),
   colorCode: z.string().optional(),
   ...baseQuestionSchema,
+  // ── New Branching Chat Fields ──
+  senderName: z.string().optional(),
+  senderAvatar: z.string().optional(),
+  initialStepId: z.string().optional(),
+  chatSteps: z.array(chatStepSchema).optional(),
+  // ── Legacy Fields (backward compat) ──
   messages: z
     .array(
       z.object({
@@ -73,7 +92,6 @@ const chatScenarioQuestionSchema = z.object({
     .optional(),
   options: z.array(z.string()).optional(),
   correctAnswer: z.string().optional(),
-  chatSteps: z.array(chatStepSchema).optional(),
 });
 
 const videoQuestionSchema = z.object({

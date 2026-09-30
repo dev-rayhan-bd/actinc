@@ -45,21 +45,37 @@ export interface IOrderingQuestion extends IQuestionBase {
   items: string[];
 }
 
-export interface IChatStep {
-  stepId?: string;
-  sender: string;
+// ── Chat Scenario: Branching Step Option ──
+export interface IChatStepOption {
+  optionId: string;
   text: string;
-  options?: string[];
-  correctAnswer?: string;
-  feedback?: string;
+  nextStepId?: string | null;  // branching: go to this step if selected, null = end
+  feedback?: string;           // feedback message after selecting this option
+  isCorrect?: boolean;         // for scored questions
+}
+
+// ── Chat Scenario: Conversation Step ──
+export interface IChatStep {
+  stepId: string;
+  messages: {                  // messages shown at this step (chat bubbles)
+    sender: string;
+    text: string;
+    isUser?: boolean;          // true = participant's message, false = other person
+  }[];
+  options?: IChatStepOption[]; // user's response choices (empty = end of path)
 }
 
 export interface IChatScenarioQuestion extends IQuestionBase {
   type: 'Chat Scenario';
+  // ── New Branching Chat Fields ──
+  senderName?: string;         // name of the other person in the chat
+  senderAvatar?: string;       // avatar/photo URL of the other person
+  initialStepId?: string;      // which step to start from (default: first step)
+  chatSteps?: IChatStep[];     // branching conversation steps
+  // ── Legacy Fields (backward compat) ──
   messages?: { sender: string; text: string }[];
   options?: string[];
   correctAnswer?: string;
-  chatSteps?: IChatStep[];
 }
 
 export interface IVideoQuestion extends IQuestionBase {
