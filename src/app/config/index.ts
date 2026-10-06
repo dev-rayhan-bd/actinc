@@ -28,5 +28,5 @@ super_admin_email: process.env.SUPER_ADMIN_EMAIL,
   super_admin_first_name: process.env.SUPER_ADMIN_FIRST_NAME,
   super_admin_last_name: process.env.SUPER_ADMIN_LAST_NAME,
   jwt_guest_access_expires_in: process.env.JWT_GUEST_ACCESS_EXPIRES_IN || '4h',
-
+  google_translate_api_key: process.env.GOOGLE_TRANSLATE_API_KEY,
 };

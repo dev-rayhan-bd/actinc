@@ -17,6 +17,7 @@ import { TrainingRoutes } from '../modules/Training/training.routes';
 import { FeaturedTrainingRoutes } from '../modules/FeaturedTraining/featuredTraining.routes';
 import { AnalyticsRoutes } from '../modules/Analytics/analytics.routes';
 import { TrainingInviteRoutes } from '../modules/TrainingInvite/trainingInvite.routes';
+import { TranslationRoutes } from '../modules/Translation/translation.routes';
 
 
 const router = Router();
@@ -62,6 +63,7 @@ const moduleRoutes = [
   { path: '/training-invite', route: TrainingInviteRoutes },
   { path: '/featured-training', route: FeaturedTrainingRoutes },
   { path: '/analytics', route: AnalyticsRoutes },
+  { path: '/translate', route: TranslationRoutes },
 ];
 
 moduleRoutes.forEach((route) => router.use(route.path, route.route));
