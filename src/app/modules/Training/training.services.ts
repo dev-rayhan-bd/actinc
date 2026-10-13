@@ -155,9 +155,39 @@ const getSingleTrainingFromDB = async (id: string, userId?: string) => {
 
   const totalModules = topicsWithProgress.reduce((sum, t) => sum + (t.moduleCount || 0), 0);
 
+  let completedModules = 0;
+  topicsWithProgress.forEach((t) => {
+    if (Array.isArray(t.modules)) {
+      t.modules.forEach((m: any) => {
+        if (m.userProgress?.status === 'completed') {
+          completedModules++;
+        }
+      });
+    }
+  });
+
+  const progressPercentage =
+    totalModules > 0
+      ? Math.min(100, Math.round((completedModules / totalModules) * 100))
+      : 0;
+  const isCompleted = totalModules > 0 && completedModules >= totalModules;
+
   return {
     ...trainingObj,
     totalModules,
+    completedModules,
+    progressPercentage,
+    isCompleted,
+    userProgress: {
+      status: isCompleted
+        ? 'completed'
+        : completedModules > 0
+          ? 'in_progress'
+          : 'not_started',
+      progressPercentage,
+      completedModules,
+      totalModules,
+    },
     topicCount: topicsWithProgress.length,
     topics: topicsWithProgress,
   };
@@ -760,11 +790,42 @@ const getMyTrainingsFromDB = async (userId: string) => {
         );
       }, 0);
 
+      const publishedModuleObjectIds = publishedModules.map((m) => m._id);
+
+      let completedModules = 0;
+      if (publishedModuleObjectIds.length > 0) {
+        completedModules = await UserProgress.countDocuments({
+          userId: user._id,
+          moduleId: { $in: publishedModuleObjectIds },
+          status: 'completed',
+        });
+      }
+
+      const progressPercentage =
+        totalModules > 0
+          ? Math.min(100, Math.round((completedModules / totalModules) * 100))
+          : 0;
+
+      const isCompleted = totalModules > 0 && completedModules >= totalModules;
+
       const trainingObj = training.toObject();
       return {
         ...trainingObj,
         topicCount: topics.length,
         totalModules,
+        completedModules,
+        progressPercentage,
+        isCompleted,
+        userProgress: {
+          status: isCompleted
+            ? 'completed'
+            : completedModules > 0
+              ? 'in_progress'
+              : 'not_started',
+          progressPercentage,
+          completedModules,
+          totalModules,
+        },
       };
     }),
   );
@@ -853,9 +914,39 @@ const getTrainingForUserFromDB = async (trainingId: string, userId?: string) => 
   const trainingObj = training.toObject();
   const totalModules = topicsWithProgress.reduce((sum, t) => sum + (t.moduleCount || 0), 0);
 
+  let completedModules = 0;
+  for (const topic of topicsWithProgress) {
+    if (Array.isArray(topic.modules)) {
+      for (const mod of topic.modules) {
+        if (mod.userProgress?.status === 'completed') {
+          completedModules++;
+        }
+      }
+    }
+  }
+
+  const progressPercentage =
+    totalModules > 0
+      ? Math.min(100, Math.round((completedModules / totalModules) * 100))
+      : 0;
+  const isCompleted = totalModules > 0 && completedModules >= totalModules;
+
   return {
     ...trainingObj,
     totalModules,
+    completedModules,
+    progressPercentage,
+    isCompleted,
+    userProgress: {
+      status: isCompleted
+        ? 'completed'
+        : completedModules > 0
+          ? 'in_progress'
+          : 'not_started',
+      progressPercentage,
+      completedModules,
+      totalModules,
+    },
     topicCount: topicsWithProgress.length,
     topics: topicsWithProgress,
   };
