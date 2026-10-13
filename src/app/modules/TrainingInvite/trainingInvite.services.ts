@@ -138,12 +138,23 @@ const getInvitationsByTrainingFromDB = async (trainingId: string, companyId?: st
 
   // Get all topic module IDs for this training
   const topics = await Topic.find({ trainingId, isDeleted: false });
-  const moduleIds: any[] = [];
+  const rawModuleIds: any[] = [];
   topics.forEach((topic) => {
     if (Array.isArray(topic.moduleIds)) {
-      topic.moduleIds.forEach((mId) => moduleIds.push(mId));
+      topic.moduleIds.forEach((mId) => rawModuleIds.push(mId));
     }
   });
+
+  const publishedModules =
+    rawModuleIds.length > 0
+      ? await Module.find({
+          _id: { $in: rawModuleIds },
+          isDeleted: false,
+          status: 'published',
+        }).select('_id')
+      : [];
+
+  const moduleIds: any[] = publishedModules.map((m) => m._id);
 
   const invitesWithProgress = await Promise.all(
     invites.map(async (invite) => {
@@ -232,12 +243,23 @@ const resendTrainingInviteByEmail = async (inviteId: string) => {
 
   if (user) {
     const topics = await Topic.find({ trainingId: training._id, isDeleted: false });
-    const moduleIds: any[] = [];
+    const rawModuleIds: any[] = [];
     topics.forEach((topic) => {
       if (Array.isArray(topic.moduleIds)) {
-        topic.moduleIds.forEach((mId) => moduleIds.push(mId));
+        topic.moduleIds.forEach((mId) => rawModuleIds.push(mId));
       }
     });
+
+    const publishedModules =
+      rawModuleIds.length > 0
+        ? await Module.find({
+            _id: { $in: rawModuleIds },
+            isDeleted: false,
+            status: 'published',
+          }).select('_id')
+        : [];
+
+    const moduleIds: any[] = publishedModules.map((m) => m._id);
 
     if (moduleIds.length > 0) {
       const progressRecords = await UserProgress.find({

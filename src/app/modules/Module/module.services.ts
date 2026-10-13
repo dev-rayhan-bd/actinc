@@ -4,6 +4,7 @@ import { Module } from './module.model';
 import QueryBuilder from '../../builder/QueryBuilder';
 import { Team } from '../Team/team.model';
 import { User } from '../User/user.model';
+import { Topic } from '../Training/training.model';
 
 // ── Create Module ──
 const createModuleInDB = async (payload: any, userId: string) => {
@@ -85,6 +86,9 @@ const deleteModuleFromDB = async (id: string) => {
   }
 
   await Module.findByIdAndUpdate(id, { isDeleted: true }, { new: true });
+
+  // Remove module reference from all topics
+  await Topic.updateMany({ moduleIds: id }, { $pull: { moduleIds: id } });
 
   return null;
 };

@@ -40,15 +40,41 @@ const getAllTrainingsFromDB = async (query: Record<string, unknown>) => {
   const result = await trainingQuery.modelQuery;
   const meta = await trainingQuery.countTotal();
 
-  // Attach topic count for each training
+  // Attach topic and module counts for each training
   const trainingsWithTopics = await Promise.all(
     result.map(async (training: any) => {
-      const topicCount = await Topic.countDocuments({
+      const topics = await Topic.find({
         trainingId: training._id,
         isDeleted: false,
-      });
+      }).select('moduleIds');
+
+      const allModuleIds = topics.reduce((acc: any[], t) => {
+        if (Array.isArray(t.moduleIds)) {
+          return acc.concat(t.moduleIds);
+        }
+        return acc;
+      }, []);
+
+      const validModules =
+        allModuleIds.length > 0
+          ? await Module.find({
+              _id: { $in: allModuleIds },
+              isDeleted: false,
+            }).select('_id')
+          : [];
+
+      const validIdSet = new Set(validModules.map((m) => m._id.toString()));
+
+      const totalModules = topics.reduce((sum, t) => {
+        if (!Array.isArray(t.moduleIds)) return sum;
+        return (
+          sum +
+          t.moduleIds.filter((id: any) => validIdSet.has(id.toString())).length
+        );
+      }, 0);
+
       const trainingObj = training.toObject ? training.toObject() : { ...training };
-      return { ...trainingObj, topicCount };
+      return { ...trainingObj, topicCount: topics.length, totalModules };
     }),
   );
 
@@ -70,7 +96,7 @@ const getSingleTrainingFromDB = async (id: string, userId?: string) => {
     .sort({ order: 1 })
     .populate({
       path: 'moduleIds',
-      select: 'title description thumbnailImage questions status',
+      select: 'title description thumbnailImage questions status isDeleted',
       match: { isDeleted: false },
     });
 
@@ -79,7 +105,8 @@ const getSingleTrainingFromDB = async (id: string, userId?: string) => {
   const topicsWithProgress = await Promise.all(
     topics.map(async (topic) => {
       const topicObj = topic.toObject();
-      const modules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+      const rawModules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+      const modules = rawModules.filter((mod: any) => mod && mod._id && !mod.isDeleted);
 
       const modulesWithProgress = await Promise.all(
         modules.map(async (mod: any) => {
@@ -126,8 +153,12 @@ const getSingleTrainingFromDB = async (id: string, userId?: string) => {
     })
   );
 
+  const totalModules = topicsWithProgress.reduce((sum, t) => sum + (t.moduleCount || 0), 0);
+
   return {
     ...trainingObj,
+    totalModules,
+    topicCount: topicsWithProgress.length,
     topics: topicsWithProgress,
   };
 };
@@ -306,24 +337,41 @@ const addTopicToTrainingInDB = async (trainingId: string, payload: any) => {
 };
 
 // ── Get Topics by Training ID ──
-const getTopicsByTrainingIdFromDB = async (trainingId: string, userId?: string) => {
+const getTopicsByTrainingIdFromDB = async (
+  trainingId: string,
+  userId?: string,
+  userRole?: string,
+) => {
   const training = await Training.findOne({ _id: trainingId, isDeleted: false });
   if (!training) {
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
+  }
+
+  const isLearner = userRole === 'user' || userRole === 'guest';
+  const matchCriteria: any = { isDeleted: false };
+  if (isLearner) {
+    matchCriteria.status = 'published';
   }
 
   const topics = await Topic.find({ trainingId, isDeleted: false })
     .sort({ order: 1 })
     .populate({
       path: 'moduleIds',
-      select: 'title description thumbnailImage questions status',
-      match: { isDeleted: false },
+      select: 'title description thumbnailImage questions status isDeleted',
+      match: matchCriteria,
     });
 
   const topicsWithProgress = await Promise.all(
     topics.map(async (topic) => {
       const topicObj = topic.toObject();
-      const modules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+      const rawModules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+      const modules = rawModules.filter(
+        (mod: any) =>
+          mod &&
+          mod._id &&
+          !mod.isDeleted &&
+          (!isLearner || mod.status === 'published'),
+      );
 
       const modulesWithProgress = await Promise.all(
         modules.map(async (mod: any) => {
@@ -374,15 +422,26 @@ const getTopicsByTrainingIdFromDB = async (trainingId: string, userId?: string) 
 };
 
 // ── Get Single Topic ──
-const getSingleTopicFromDB = async (trainingId: string, topicId: string, userId?: string) => {
+const getSingleTopicFromDB = async (
+  trainingId: string,
+  topicId: string,
+  userId?: string,
+  userRole?: string,
+) => {
+  const isLearner = userRole === 'user' || userRole === 'guest';
+  const matchCriteria: any = { isDeleted: false };
+  if (isLearner) {
+    matchCriteria.status = 'published';
+  }
+
   const topic = await Topic.findOne({
     _id: topicId,
     trainingId,
     isDeleted: false,
   }).populate({
     path: 'moduleIds',
-    select: 'title description thumbnailImage questions status',
-    match: { isDeleted: false },
+    select: 'title description thumbnailImage questions status isDeleted',
+    match: matchCriteria,
   });
 
   if (!topic) {
@@ -390,7 +449,14 @@ const getSingleTopicFromDB = async (trainingId: string, topicId: string, userId?
   }
 
   const topicObj = topic.toObject();
-  const modules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+  const rawModules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+  const modules = rawModules.filter(
+    (mod: any) =>
+      mod &&
+      mod._id &&
+      !mod.isDeleted &&
+      (!isLearner || mod.status === 'published'),
+  );
 
   const modulesWithProgress = await Promise.all(
     modules.map(async (mod: any) => {
@@ -589,11 +655,37 @@ const getTrainingsByCompanyFromDB = async (companyId: string) => {
         .sort({ order: 1 })
         .select('title moduleIds order');
 
+      const allModuleIds = topics.reduce((acc: any[], t) => {
+        if (Array.isArray(t.moduleIds)) {
+          return acc.concat(t.moduleIds);
+        }
+        return acc;
+      }, []);
+
+      const publishedModules =
+        allModuleIds.length > 0
+          ? await Module.find({
+              _id: { $in: allModuleIds },
+              isDeleted: false,
+              status: 'published',
+            }).select('_id')
+          : [];
+
+      const publishedIdSet = new Set(publishedModules.map((m) => m._id.toString()));
+
+      const totalModules = topics.reduce((sum, t) => {
+        if (!Array.isArray(t.moduleIds)) return sum;
+        return (
+          sum +
+          t.moduleIds.filter((id: any) => publishedIdSet.has(id.toString())).length
+        );
+      }, 0);
+
       const trainingObj = training.toObject();
       return {
         ...trainingObj,
         topicCount: topics.length,
-        totalModules: topics.reduce((sum, t) => sum + t.moduleIds.length, 0),
+        totalModules,
       };
     }),
   );
@@ -642,11 +734,37 @@ const getMyTrainingsFromDB = async (userId: string) => {
         .sort({ order: 1 })
         .select('title moduleIds order');
 
+      const allModuleIds = topics.reduce((acc: any[], t) => {
+        if (Array.isArray(t.moduleIds)) {
+          return acc.concat(t.moduleIds);
+        }
+        return acc;
+      }, []);
+
+      const publishedModules =
+        allModuleIds.length > 0
+          ? await Module.find({
+              _id: { $in: allModuleIds },
+              isDeleted: false,
+              status: 'published',
+            }).select('_id')
+          : [];
+
+      const publishedIdSet = new Set(publishedModules.map((m) => m._id.toString()));
+
+      const totalModules = topics.reduce((sum, t) => {
+        if (!Array.isArray(t.moduleIds)) return sum;
+        return (
+          sum +
+          t.moduleIds.filter((id: any) => publishedIdSet.has(id.toString())).length
+        );
+      }, 0);
+
       const trainingObj = training.toObject();
       return {
         ...trainingObj,
         topicCount: topics.length,
-        totalModules: topics.reduce((sum, t) => sum + t.moduleIds.length, 0),
+        totalModules,
       };
     }),
   );
@@ -672,15 +790,18 @@ const getTrainingForUserFromDB = async (trainingId: string, userId?: string) => 
     .sort({ order: 1 })
     .populate({
       path: 'moduleIds',
-      select: 'title description thumbnailImage questions status',
-      match: { isDeleted: false },
+      select: 'title description thumbnailImage questions status isDeleted',
+      match: { isDeleted: false, status: 'published' },
     });
 
   // Get user progress for each module if userId exists
   const topicsWithProgress = await Promise.all(
     topics.map(async (topic) => {
       const topicObj = topic.toObject();
-      const modules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+      const rawModules = Array.isArray(topicObj.moduleIds) ? topicObj.moduleIds : [];
+      const modules = rawModules.filter(
+        (mod: any) => mod && mod._id && !mod.isDeleted && mod.status === 'published',
+      );
 
       const modulesWithProgress = await Promise.all(
         modules.map(async (mod: any) => {
@@ -730,9 +851,12 @@ const getTrainingForUserFromDB = async (trainingId: string, userId?: string) => 
   );
 
   const trainingObj = training.toObject();
+  const totalModules = topicsWithProgress.reduce((sum, t) => sum + (t.moduleCount || 0), 0);
 
   return {
     ...trainingObj,
+    totalModules,
+    topicCount: topicsWithProgress.length,
     topics: topicsWithProgress,
   };
 };

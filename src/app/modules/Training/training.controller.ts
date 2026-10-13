@@ -137,9 +137,11 @@ const addTopic = catchAsync(async (req, res) => {
 // ── Get Topics for a Training ──
 const getTopics = catchAsync(async (req, res) => {
   const userId = req.user?.userId;
+  const userRole = req.user?.role;
   const result = await TrainingServices.getTopicsByTrainingIdFromDB(
     req.params.id as string,
     userId,
+    userRole,
   );
 
   sendResponse(res, {
@@ -153,10 +155,12 @@ const getTopics = catchAsync(async (req, res) => {
 // ── Get Single Topic ──
 const getSingleTopic = catchAsync(async (req, res) => {
   const userId = req.user?.userId;
+  const userRole = req.user?.role;
   const result = await TrainingServices.getSingleTopicFromDB(
     req.params.id as string,
     req.params.topicId as string,
     userId,
+    userRole,
   );
 
   sendResponse(res, {
