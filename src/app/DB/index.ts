@@ -25,7 +25,7 @@ const seedAdmin = async () => {
 
     if (!isSuperAdminExits) {
       await Admin.create(superUser as any);
-      console.log("✅ Super Admin seeded successfully!");
+      console.log("✅ Super Admin seeded successfully!!!");
     } else {
       console.log("ℹ️ Super Admin already exists. Skipping seed.");
     }
