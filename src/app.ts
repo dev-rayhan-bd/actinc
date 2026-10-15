@@ -6,15 +6,12 @@ import router from './app/routes/index';
 import globalErrorHandler from './app/middleware/globalErrorHandler';
 import notFound from './app/middleware/notFound';
 import morgan from 'morgan';
-// import { stripeWebhookHandler } from './app/webhook/webhook.stripe';
 
 import helmet from 'helmet';
 // import rateLimit from 'express-rate-limit';
 import mongoSanitizeMiddleware from './app/middleware/mongosanitize';
 
 const app: Application = express();
-
-
 
 // --- HIGH SECURITY MIDDLEWARES ---
 app.use(helmet()); // HTTP headers security
@@ -65,13 +62,6 @@ app.use(
     credentials: true,
   })
 );
-
-// Stripe needs raw body for signature verification
-// app.post(
-//   '/webhook/stripe',
-//   express.raw({ type: 'application/json' }),
-//   stripeWebhookHandler
-// );
 
 
 

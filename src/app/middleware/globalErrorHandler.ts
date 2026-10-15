@@ -11,11 +11,7 @@ import handleDuplicateError from '../errors/handleDuplicateError';
 import AppError from '../errors/AppError';
 
 
-
-console.log("node env---->",config.NODE_ENV);
-
 const globalErrorHandler: ErrorRequestHandler = (err, req, res, next): void => {
-  // console.log(err.statusCode);
   //setting default values
   let statusCode = 500;
   let message = 'Something went wrong!';
@@ -70,7 +66,7 @@ const globalErrorHandler: ErrorRequestHandler = (err, req, res, next): void => {
     success: false,
     message,
     errorSources,
-    err,
+    err: config.NODE_ENV === 'development' ? err : null,
     stack: config.NODE_ENV === 'development' ? err?.stack : null,
   });
 };

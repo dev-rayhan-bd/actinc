@@ -40,7 +40,6 @@ const createFAQ = async (
   res: Response,
   next: NextFunction,
 ) => {
-//   console.log("create revieew-->",req.body);
   const path = `${req.protocol}://${req.get('host')}/uploads/${req.file?.filename}`;
 const payload = req.body
 payload.image = path
@@ -77,16 +76,12 @@ const editFaq = async (
   res: Response,
   next: NextFunction,
 ) => {
-//   console.log("create revieew-->",req.body);
   try {
  
   const {id} = req.params;
   const path = `${req.protocol}://${req.get('host')}/uploads/${req.file?.filename}`;
 const payload = req.body;
 payload.image = path;
-
-
-    // console.log("Data with file paths: ", data);
     
     const result = await FAQServices.updateFAQFromDB(id as string,payload)
     sendResponse(res, {

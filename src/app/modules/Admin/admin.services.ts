@@ -1,5 +1,6 @@
 import httpStatus from 'http-status';
 import bcrypt from 'bcrypt';
+import crypto from 'node:crypto';
 import AppError from '../../errors/AppError';
 import { Admin } from './admin.model';
 import { User } from '../User/user.model'; 
@@ -98,7 +99,7 @@ const forgotPassword = async (identifier: string) => {
   const admin = await Admin.findOne({ $or: [{ email: identifier }, { phone: identifier }] });
   if (!admin) throw new AppError(httpStatus.NOT_FOUND, 'Admin account not found');
 
-  const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const plainOtp = crypto.randomInt(100000, 1000000).toString();
   admin.otp = plainOtp;
   admin.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await admin.save();
@@ -134,7 +135,7 @@ const resendOTP = async (identifier: string) => {
   
   if (!admin) throw new AppError(httpStatus.NOT_FOUND, 'Admin not found');
 
-  const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const plainOtp = crypto.randomInt(100000, 1000000).toString();
   admin.otp = plainOtp; 
   admin.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await admin.save();

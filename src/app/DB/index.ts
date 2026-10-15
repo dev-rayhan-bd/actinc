@@ -2,7 +2,6 @@ import config from "../config";
 import { Admin } from "../modules/Admin/admin.model";
 import { USER_ROLE } from "../modules/Auth/auth.constant";
 import { TUser } from "../modules/User/user.interface";
-import { User } from "../modules/User/user.model";
 
 
 const seedAdmin = async () => {
@@ -21,9 +20,9 @@ const seedAdmin = async () => {
 
   try {
 
-    const isSuperAdminExits = await Admin.findOne({ role: USER_ROLE.superAdmin });
+    const isSuperAdminExists = await Admin.findOne({ role: USER_ROLE.superAdmin });
 
-    if (!isSuperAdminExits) {
+    if (!isSuperAdminExists) {
       await Admin.create(superUser as any);
       console.log("✅ Super Admin seeded successfully!!!");
     } else {

@@ -58,7 +58,7 @@ const registerUser = async (payload: TUser & { companyId: string; teamId: string
   if (!team) throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
   if (team.companyId.toString() !== companyId) throw new AppError(httpStatus.BAD_REQUEST, 'Team does not belong to this company');
 
-  const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const plainOtp = crypto.randomInt(100000, 1000000).toString();
 
   const userData: Partial<TUser> = {
     firstName: payload.firstName,
@@ -470,7 +470,7 @@ const resendOTP = async (identifier: string) => {
 
   if (!user) throw new AppError(httpStatus.NOT_FOUND, 'User not found');
 
-  const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const plainOtp = crypto.randomInt(100000, 1000000).toString();
   user.otp = plainOtp;
   user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
@@ -486,7 +486,7 @@ const forgotPass = async (identifier: string) => {
 
   if (!user) throw new AppError(httpStatus.NOT_FOUND, 'User not found');
 
-  const plainOtp = Math.floor(100000 + Math.random() * 900000).toString();
+  const plainOtp = crypto.randomInt(100000, 1000000).toString();
   user.otp = plainOtp;
   user.otpExpires = new Date(Date.now() + 10 * 60 * 1000);
   await user.save();
