@@ -91,6 +91,20 @@ const getSingleTrainingFromDB = async (id: string, userId?: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
   }
 
+  if (userId && training.companyId) {
+    const currentUser = await User.findById(userId);
+    if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'superAdmin') {
+      const userCompanyId = currentUser.role === 'company' ? currentUser._id : currentUser.companyId;
+      const trainingCompanyId = (training.companyId as any)._id || training.companyId;
+      if (userCompanyId && trainingCompanyId && userCompanyId.toString() !== trainingCompanyId.toString()) {
+        throw new AppError(
+          httpStatus.FORBIDDEN,
+          'You belong to another organization and cannot access this training'
+        );
+      }
+    }
+  }
+
   // Get all topics for this training, sorted by order
   const topics = await Topic.find({ trainingId: id, isDeleted: false })
     .sort({ order: 1 })
@@ -377,6 +391,18 @@ const getTopicsByTrainingIdFromDB = async (
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
   }
 
+  if (userId && training.companyId && userRole !== 'admin' && userRole !== 'superAdmin') {
+    const currentUser = await User.findById(userId);
+    const userCompanyId = currentUser?.role === 'company' ? currentUser._id : currentUser?.companyId;
+    const trainingCompanyId = (training.companyId as any)?._id || training.companyId;
+    if (userCompanyId && trainingCompanyId && userCompanyId.toString() !== trainingCompanyId.toString()) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        'You belong to another organization and cannot access this training'
+      );
+    }
+  }
+
   const isLearner = userRole === 'user' || userRole === 'guest';
   const matchCriteria: any = { isDeleted: false };
   if (isLearner) {
@@ -458,6 +484,23 @@ const getSingleTopicFromDB = async (
   userId?: string,
   userRole?: string,
 ) => {
+  const training = await Training.findOne({ _id: trainingId, isDeleted: false });
+  if (!training) {
+    throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
+  }
+
+  if (userId && training.companyId && userRole !== 'admin' && userRole !== 'superAdmin') {
+    const currentUser = await User.findById(userId);
+    const userCompanyId = currentUser?.role === 'company' ? currentUser._id : currentUser?.companyId;
+    const trainingCompanyId = (training.companyId as any)?._id || training.companyId;
+    if (userCompanyId && trainingCompanyId && userCompanyId.toString() !== trainingCompanyId.toString()) {
+      throw new AppError(
+        httpStatus.FORBIDDEN,
+        'You belong to another organization and cannot access this training'
+      );
+    }
+  }
+
   const isLearner = userRole === 'user' || userRole === 'guest';
   const matchCriteria: any = { isDeleted: false };
   if (isLearner) {
@@ -847,6 +890,20 @@ const getTrainingForUserFromDB = async (trainingId: string, userId?: string) => 
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found or not published');
   }
 
+  if (userId && training.companyId) {
+    const currentUser = await User.findById(userId);
+    if (currentUser && currentUser.role !== 'admin' && currentUser.role !== 'superAdmin') {
+      const userCompanyId = currentUser.role === 'company' ? currentUser._id : currentUser.companyId;
+      const trainingCompanyId = (training.companyId as any)?._id || training.companyId;
+      if (userCompanyId && trainingCompanyId && userCompanyId.toString() !== trainingCompanyId.toString()) {
+        throw new AppError(
+          httpStatus.FORBIDDEN,
+          'You belong to another organization and cannot access this training'
+        );
+      }
+    }
+  }
+
   const topics = await Topic.find({ trainingId, isDeleted: false })
     .sort({ order: 1 })
     .populate({
@@ -971,7 +1028,23 @@ const authenticateTrainingInDB = async (
     if (!invite || invite.expiresAt < new Date()) {
       throw new AppError(httpStatus.UNAUTHORIZED, 'Invalid or expired invite token');
     }
-    
+    if (invite.email && training.companyId) {
+      const existingUser = await User.findOne({ email: invite.email });
+      if (existingUser && existingUser.role !== 'admin' && existingUser.role !== 'superAdmin') {
+        const userCompanyId = existingUser.role === 'company' ? existingUser._id : existingUser.companyId;
+        const trainingCompanyId = (training.companyId as any)?._id || training.companyId;
+        if (
+          userCompanyId &&
+          trainingCompanyId &&
+          userCompanyId.toString() !== trainingCompanyId.toString()
+        ) {
+          throw new AppError(
+            httpStatus.FORBIDDEN,
+            'You belong to another organization and cannot access this training'
+          );
+        }
+      }
+    }
     isInviteTokenValid = true;
   }
 
@@ -987,7 +1060,26 @@ const authenticateTrainingInDB = async (
   if (payload.authType === 'email') {
     if (!payload.identifier) throw new AppError(httpStatus.BAD_REQUEST, 'Email is required');
     user = await User.findOne({ email: payload.identifier });
-    if (!user) {
+    if (user) {
+      if (user.role !== 'admin' && user.role !== 'superAdmin') {
+        const userCompanyId = user.role === 'company' ? user._id : user.companyId;
+        const trainingCompanyId = (training.companyId as any)?._id || training.companyId;
+        if (
+          trainingCompanyId &&
+          userCompanyId &&
+          userCompanyId.toString() !== trainingCompanyId.toString()
+        ) {
+          throw new AppError(
+            httpStatus.FORBIDDEN,
+            'You belong to another organization and cannot access this training'
+          );
+        }
+      }
+      if (!user.teamId && training.teamId) {
+        user.teamId = training.teamId;
+        await user.save();
+      }
+    } else {
       user = await User.create({
         email: payload.identifier,
         firstName: payload.name || 'User',
@@ -996,9 +1088,6 @@ const authenticateTrainingInDB = async (
         companyId: training.companyId,
         teamId: training.teamId,
       });
-    } else if (!user.teamId && training.teamId) {
-      user.teamId = training.teamId;
-      await user.save();
     }
 
     // Tracking logic: ensure they have a TrainingInvite record so they show up in the dashboard
@@ -1024,7 +1113,26 @@ const authenticateTrainingInDB = async (
   } else if (payload.authType === 'employeeId') {
     if (!payload.identifier) throw new AppError(httpStatus.BAD_REQUEST, 'Employee ID is required');
     user = await User.findOne({ employeeId: payload.identifier });
-    if (!user) {
+    if (user) {
+      if (user.role !== 'admin' && user.role !== 'superAdmin') {
+        const userCompanyId = user.role === 'company' ? user._id : user.companyId;
+        const trainingCompanyId = (training.companyId as any)?._id || training.companyId;
+        if (
+          trainingCompanyId &&
+          userCompanyId &&
+          userCompanyId.toString() !== trainingCompanyId.toString()
+        ) {
+          throw new AppError(
+            httpStatus.FORBIDDEN,
+            'You belong to another organization and cannot access this training'
+          );
+        }
+      }
+      if (!user.teamId && training.teamId) {
+        user.teamId = training.teamId;
+        await user.save();
+      }
+    } else {
       user = await User.create({
         employeeId: payload.identifier,
         email: `emp_${Date.now()}_${Math.random().toString(36).substring(2, 9)}@actinc.local`,
@@ -1034,9 +1142,6 @@ const authenticateTrainingInDB = async (
         companyId: training.companyId,
         teamId: training.teamId,
       });
-    } else if (!user.teamId && training.teamId) {
-      user.teamId = training.teamId;
-      await user.save();
     }
   } else if (payload.authType === 'passcode') {
     if (payload.identifier !== training.passcode) {

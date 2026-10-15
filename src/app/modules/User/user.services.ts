@@ -169,7 +169,7 @@ const getMeFromDB = async (
 
 const getUsersByCompany = async (companyId: string, query: Record<string, unknown>) => {
   const userQuery = new QueryBuilder(
-    User.find({ companyId, role: 'user', isDeleted: false }).select('-password -otp -otpExpires'),
+    User.find({ companyId, role: { $in: ['user', 'guest'] }, isDeleted: false }).select('-password -otp -otpExpires'),
     query,
   )
     .search(['firstName', 'lastName', 'email', 'phone', 'employeeId'])

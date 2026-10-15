@@ -123,7 +123,7 @@ const broadcastToCompanies = async (payload: BroadcastToCompaniesPayload) => {
     if (!companyId) {
       throw new AppError(httpStatus.BAD_REQUEST, 'companyId is required for targeted broadcast');
     }
-    filter.companyId = companyId;
+    filter._id = companyId;
   }
 
   // Fetch all matching company users

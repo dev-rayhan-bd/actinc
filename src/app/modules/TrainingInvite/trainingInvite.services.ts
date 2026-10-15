@@ -22,6 +22,20 @@ const generateShareLinkInDB = async (
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
   }
 
+  if (email && training.companyId) {
+    const existingUser = await User.findOne({ email });
+    if (existingUser && existingUser.role !== 'admin' && existingUser.role !== 'superAdmin') {
+      const userCompanyId = existingUser.role === 'company' ? existingUser._id : existingUser.companyId;
+      const trainingCompanyId = (training.companyId as any)?._id || training.companyId;
+      if (userCompanyId && trainingCompanyId && userCompanyId.toString() !== trainingCompanyId.toString()) {
+        throw new AppError(
+          httpStatus.FORBIDDEN,
+          'This user belongs to another organization and cannot be invited to this training'
+        );
+      }
+    }
+  }
+
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + expiresInDays);
@@ -90,6 +104,20 @@ const getTrainingByTokenFromDB = async (token: string) => {
 
   if (!training) {
     throw new AppError(httpStatus.NOT_FOUND, 'Training not found');
+  }
+
+  if (invite.email && training.companyId) {
+    const existingUser = await User.findOne({ email: invite.email });
+    if (existingUser && existingUser.role !== 'admin' && existingUser.role !== 'superAdmin') {
+      const userCompanyId = existingUser.role === 'company' ? existingUser._id : existingUser.companyId;
+      const trainingCompanyId = (training.companyId as any)?._id || training.companyId;
+      if (userCompanyId && trainingCompanyId && userCompanyId.toString() !== trainingCompanyId.toString()) {
+        throw new AppError(
+          httpStatus.FORBIDDEN,
+          'You belong to another organization and cannot access this training'
+        );
+      }
+    }
   }
 
   // Get full nested data
