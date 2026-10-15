@@ -297,7 +297,7 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
 
   // 5. Get UserProgress for all users in this company
   const userProgress = await UserProgress.find({ companyId, moduleId: { $in: moduleIds } })
-    .select('userId moduleId status progressPercentage score completedQuestions totalQuestions')
+    .select('userId moduleId teamId status progressPercentage score completedQuestions totalQuestions')
     .lean();
 
   // 6. Calculate completion rate
@@ -348,12 +348,37 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
   // 9. Team performance
   const teamPerformance = await Promise.all(
     teams.map(async (team) => {
-      const teamUserIds = users.filter((u) => u.teamId?.toString() === team._id.toString()).map((u) => u._id);
-      const teamProgress = userProgress.filter((p) => teamUserIds.some((id) => id.equals(p.userId)));
+      const directTeamUserIds = users
+        .filter((u) => u.teamId?.toString() === team._id.toString())
+        .map((u) => u._id.toString());
 
-      const teamCompleted = teamProgress.filter((p) => p.status === 'completed').length;
-      const teamTotal = teamUserIds.length * moduleIds.length;
-      const teamProgressPct = teamTotal > 0 ? Math.round((teamCompleted / teamTotal) * 100) : 0;
+      const teamProgressRecords = userProgress.filter(
+        (p) => (p as any).teamId?.toString() === team._id.toString(),
+      );
+
+      const teamUserIdsSet = new Set<string>([
+        ...directTeamUserIds,
+        ...teamProgressRecords.map((p) => p.userId?.toString()).filter(Boolean) as string[],
+      ]);
+
+      const teamProgress = userProgress.filter(
+        (p) =>
+          (p as any).teamId?.toString() === team._id.toString() ||
+          (p.userId && teamUserIdsSet.has(p.userId.toString())),
+      );
+
+      const teamModules = modules.filter(
+        (m) => !(m as any).teamId || (m as any).teamId.toString() === team._id.toString(),
+      );
+      const teamModulesCount = teamModules.length > 0 ? teamModules.length : moduleIds.length;
+
+      const activeCount = teamUserIdsSet.size;
+      const teamTotal = activeCount * teamModulesCount;
+
+      const totalProgressSum = teamProgress.reduce((sum, p) => sum + (p.progressPercentage || 0), 0);
+      const teamProgressPct = teamTotal > 0
+        ? Math.min(100, Math.round(totalProgressSum / teamTotal))
+        : (teamProgress.length > 0 ? Math.min(100, Math.round(totalProgressSum / teamProgress.length)) : 0);
 
       const teamScored = teamProgress.filter((p) => p.score !== undefined && p.score !== null);
       const teamAvgScore = teamScored.length > 0
@@ -363,7 +388,7 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
       return {
         teamId: team._id.toString(),
         teamName: team.name,
-        activeCount: teamUserIds.length,
+        activeCount,
         progressPercentage: teamProgressPct,
         averageScore: Math.round(teamAvgScore * 10) / 10,
       };

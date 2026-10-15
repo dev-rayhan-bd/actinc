@@ -994,7 +994,11 @@ const authenticateTrainingInDB = async (
         role: 'user',
         authType: 'email',
         companyId: training.companyId,
+        teamId: training.teamId,
       });
+    } else if (!user.teamId && training.teamId) {
+      user.teamId = training.teamId;
+      await user.save();
     }
 
     // Tracking logic: ensure they have a TrainingInvite record so they show up in the dashboard
@@ -1028,7 +1032,11 @@ const authenticateTrainingInDB = async (
         role: 'user',
         authType: 'employeeId',
         companyId: training.companyId,
+        teamId: training.teamId,
       });
+    } else if (!user.teamId && training.teamId) {
+      user.teamId = training.teamId;
+      await user.save();
     }
   } else if (payload.authType === 'passcode') {
     if (payload.identifier !== training.passcode) {
@@ -1040,6 +1048,7 @@ const authenticateTrainingInDB = async (
       role: 'guest',
       authType: 'passcode',
       companyId: training.companyId,
+      teamId: training.teamId,
     });
   } else if (payload.authType === 'guest') {
     // Guest doesn't need identifier
@@ -1049,6 +1058,7 @@ const authenticateTrainingInDB = async (
       role: 'guest',
       authType: 'anonymous', // we can keep anonymous here as the User schema enum uses anonymous
       companyId: training.companyId,
+      teamId: training.teamId,
     });
   } else {
     throw new AppError(httpStatus.BAD_REQUEST, 'Invalid auth type');

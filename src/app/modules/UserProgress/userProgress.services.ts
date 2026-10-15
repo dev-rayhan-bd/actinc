@@ -491,8 +491,14 @@ const getTeamPerformanceFromDB = async (teamId: string) => {
     throw new AppError(httpStatus.NOT_FOUND, 'Team not found');
   }
 
+  const progressRecords = await UserProgress.find({ teamId });
+  const progressUserIds = progressRecords.map((p) => p.userId).filter(Boolean);
+
   const teamUsers = await User.find({
-    teamId,
+    $or: [
+      { teamId },
+      { _id: { $in: progressUserIds } }
+    ],
     role: { $in: ['user', 'guest'] },
     isDeleted: false
   }).select(
@@ -501,11 +507,6 @@ const getTeamPerformanceFromDB = async (teamId: string) => {
 
   const teamUserIds = teamUsers.map((u) => u._id);
   const assignedModules = await Module.find({ teamId, isDeleted: false });
-
-  const progressRecords = await UserProgress.find({
-    userId: { $in: teamUserIds },
-    teamId,
-  });
 
   const totalMembers = teamUsers.length;
   const totalAssignedModules = assignedModules.length;
@@ -604,26 +605,32 @@ const getCompanyPerformanceFromDB = async (companyId: string) => {
 
   const teamBreakdown = await Promise.all(
     teams.map(async (t) => {
-      const tUsers = companyUsers.filter((u) => u.teamId && u.teamId.equals(t._id));
-      const tUserIds = tUsers.map((u) => u._id);
-      const tModules = assignedModules.filter((m) => m.teamId && m.teamId.equals(t._id));
-
       const tProgressRecords = progressRecords.filter((p) =>
-        tUserIds.some((id) => id.equals(p.userId)),
+        (p.teamId && p.teamId.equals(t._id)),
+      );
+      const tProgressUserIds = tProgressRecords.map((p) => p.userId).filter(Boolean);
+      const tUsers = companyUsers.filter((u) =>
+        (u.teamId && u.teamId.equals(t._id)) || tProgressUserIds.some((id) => id.equals(u._id))
+      );
+      const tUserIds = tUsers.map((u) => u._id);
+      const tModules = assignedModules.filter((m) => !m.teamId || m.teamId.equals(t._id));
+
+      const allTeamProgress = progressRecords.filter((p) =>
+        (p.teamId && p.teamId.equals(t._id)) || tUserIds.some((id) => id.equals(p.userId))
       );
 
-      const tCompleted = tProgressRecords.filter((p) => p.status === 'completed').length;
-      const tTotalAssignments = tUsers.length * tModules.length;
+      const tCompleted = allTeamProgress.filter((p) => p.status === 'completed').length;
+      const tTotalAssignments = tUsers.length * (tModules.length || 1);
 
       const tAvgProgress =
         tTotalAssignments > 0
           ? Math.round(
-            (tProgressRecords.reduce((sum, p) => sum + p.progressPercentage, 0) /
+            (allTeamProgress.reduce((sum, p) => sum + p.progressPercentage, 0) /
               tTotalAssignments),
           )
           : 0;
 
-      const scored = tProgressRecords.filter((p) => p.score !== undefined && p.score !== null);
+      const scored = allTeamProgress.filter((p) => p.score !== undefined && p.score !== null);
       const tAvgScore =
         scored.length > 0 ? Math.round(scored.reduce((sum, p) => sum + (p.score || 0), 0) / scored.length) : 0;
 
