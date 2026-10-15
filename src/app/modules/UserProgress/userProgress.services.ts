@@ -235,92 +235,121 @@ const submitAnswerInDB = async (
     throw new AppError(httpStatus.NOT_FOUND, 'Question not found in module');
   }
 
-  // Check correctness & marking
-  let isCorrect = false;
-  let qScore = 0;
+  // Check if question is scored (must be explicitly true)
+  const isQuestionScored = question.isScored === true || String(question.isScored) === 'true';
 
-  if (question.type === 'MCQ') {
-    if (
-      question.correctAnswer &&
-      String(answer).trim().toLowerCase() === String(question.correctAnswer).trim().toLowerCase()
-    ) {
-      isCorrect = true;
-      qScore = 100;
-    }
-  } else if (question.type === 'Swipe') {
-    if (
-      question.correctDirection &&
-      String(answer).trim().toLowerCase() === String(question.correctDirection).trim().toLowerCase()
-    ) {
-      isCorrect = true;
-      qScore = 100;
-    } else if (!question.correctDirection) {
-      isCorrect = true;
-      qScore = 100;
-    }
-  } else if (question.type === 'Ordering') {
-    if (
-      Array.isArray(answer) &&
-      Array.isArray(question.items) &&
-      JSON.stringify(answer) === JSON.stringify(question.items)
-    ) {
-      isCorrect = true;
-      qScore = 100;
-    }
-  } else if (question.type === 'Chat Scenario') {
-    // ── New Branching Chat Scoring ──
-    // answer format for branching: { stepId: string, optionId: string } OR array of such objects
-    // answer format for legacy: string (matched against correctAnswer)
-    if (question.chatSteps && question.chatSteps.length > 0 && typeof answer === 'object' && !Array.isArray(answer)) {
-      // Single step answer: { stepId, optionId }
-      const step: any = question.chatSteps.find((s: any) => s.stepId === answer.stepId);
-      if (step) {
-        const selectedOption: any = step.options?.find((o: any) => o.optionId === answer.optionId);
-        if (selectedOption) {
-          isCorrect = selectedOption.isCorrect === true;
-          qScore = isCorrect ? 100 : 0;
-        }
-      }
-    } else if (question.chatSteps && question.chatSteps.length > 0 && Array.isArray(answer)) {
-      // Multi-step answers: [{ stepId, optionId }, ...] — score = average correctness
-      let correctCount = 0;
-      let totalScored = 0;
-      for (const ans of answer) {
-        const step: any = question.chatSteps.find((s: any) => s.stepId === ans.stepId);
-        if (step) {
-          const selectedOption: any = step.options?.find((o: any) => o.optionId === ans.optionId);
-          if (selectedOption) {
-            totalScored++;
-            if (selectedOption.isCorrect === true) {
-              correctCount++;
-            }
-          }
-        }
-      }
-      if (totalScored > 0) {
-        qScore = Math.round((correctCount / totalScored) * 100);
-        isCorrect = correctCount === totalScored;
-      } else {
-        isCorrect = true;
-        qScore = 100;
-      }
-    } else {
-      // Legacy: flat correctAnswer matching
+  // Check correctness & marking
+  let isCorrect: boolean | undefined = undefined;
+  let qScore: number | null = null;
+
+  if (isQuestionScored) {
+    isCorrect = false;
+    qScore = 0;
+
+    if (question.type === 'MCQ') {
       if (
         question.correctAnswer &&
         String(answer).trim().toLowerCase() === String(question.correctAnswer).trim().toLowerCase()
       ) {
         isCorrect = true;
         qScore = 100;
-      } else if (!question.correctAnswer) {
+      }
+    } else if (question.type === 'Swipe') {
+      if (
+        question.correctDirection &&
+        String(answer).trim().toLowerCase() === String(question.correctDirection).trim().toLowerCase()
+      ) {
+        isCorrect = true;
+        qScore = 100;
+      } else if (!question.correctDirection) {
+        isCorrect = true;
+        qScore = 100;
+      }
+    } else if (question.type === 'Ordering') {
+      if (
+        Array.isArray(answer) &&
+        Array.isArray(question.items) &&
+        JSON.stringify(answer) === JSON.stringify(question.items)
+      ) {
+        isCorrect = true;
+        qScore = 100;
+      }
+    } else if (question.type === 'Chat Scenario') {
+      // ── New Branching Chat Scoring ──
+      // answer format for branching: { stepId: string, optionId: string } OR array of such objects
+      // answer format for legacy: string (matched against correctAnswer)
+      if (question.chatSteps && question.chatSteps.length > 0 && typeof answer === 'object' && !Array.isArray(answer)) {
+        // Single step answer: { stepId, optionId }
+        const step: any = question.chatSteps.find((s: any) => s.stepId === answer.stepId);
+        if (step) {
+          const selectedOption: any = step.options?.find((o: any) => o.optionId === answer.optionId);
+          if (selectedOption) {
+            isCorrect = selectedOption.isCorrect === true;
+            qScore = isCorrect ? 100 : 0;
+          }
+        }
+      } else if (question.chatSteps && question.chatSteps.length > 0 && Array.isArray(answer)) {
+        // Multi-step answers: [{ stepId, optionId }, ...] — score = average correctness
+        let correctCount = 0;
+        let totalScored = 0;
+        for (const ans of answer) {
+          const step: any = question.chatSteps.find((s: any) => s.stepId === ans.stepId);
+          if (step) {
+            const selectedOption: any = step.options?.find((o: any) => o.optionId === ans.optionId);
+            if (selectedOption) {
+              totalScored++;
+              if (selectedOption.isCorrect === true) {
+                correctCount++;
+              }
+            }
+          }
+        }
+        if (totalScored > 0) {
+          qScore = Math.round((correctCount / totalScored) * 100);
+          isCorrect = correctCount === totalScored;
+        } else {
+          isCorrect = true;
+          qScore = 100;
+        }
+      } else {
+        // Legacy: flat correctAnswer matching
+        if (
+          question.correctAnswer &&
+          String(answer).trim().toLowerCase() === String(question.correctAnswer).trim().toLowerCase()
+        ) {
+          isCorrect = true;
+          qScore = 100;
+        } else if (!question.correctAnswer) {
+          isCorrect = true;
+          qScore = 100;
+        }
+      }
+    } else if (question.type === 'Video') {
+      if (question.correctAnswer) {
+        if (
+          String(answer).trim().toLowerCase() === String(question.correctAnswer).trim().toLowerCase()
+        ) {
+          isCorrect = true;
+          qScore = 100;
+        }
+      } else {
+        isCorrect = true;
+        qScore = 100;
+      }
+    } else {
+      // Rating, Free Input, Information, Simulated Call
+      if (question.correctAnswer) {
+        if (
+          String(answer).trim().toLowerCase() === String(question.correctAnswer).trim().toLowerCase()
+        ) {
+          isCorrect = true;
+          qScore = 100;
+        }
+      } else {
         isCorrect = true;
         qScore = 100;
       }
     }
-  } else {
-    // Rating, Video, Free Input
-    isCorrect = true;
-    qScore = 100;
   }
 
   let progress: any = null;
@@ -335,7 +364,7 @@ const submitAnswerInDB = async (
         teamId: user?.teamId || module.teamId,
         moduleId,
         status: 'in_progress',
-        score: 0,
+        score: null,
         startedAt: new Date(),
         answers: [],
       });
@@ -356,8 +385,8 @@ const submitAnswerInDB = async (
     const answerObj = {
       questionId,
       answer,
-      isCorrect,
-      score: qScore,
+      isCorrect: isQuestionScored ? isCorrect : undefined,
+      score: isQuestionScored ? qScore : null,
       answeredAt: new Date(),
     };
 
@@ -374,10 +403,12 @@ const submitAnswerInDB = async (
       totalQuestions > 0 ? Math.min(100, Math.round((completedQuestions / totalQuestions) * 100)) : 100;
 
     // Calculate score for scored questions
-    const hasScoredQuestionsInModule = module.questions.some((q: any) => q.isScored !== false);
+    const hasScoredQuestionsInModule = module.questions.some(
+      (q: any) => q.isScored === true || String(q.isScored) === 'true',
+    );
     const scoredAnswers = progress.answers.filter((a: any) => {
       const q: any = module.questions.find((qItem: any) => qItem.id === a.questionId);
-      return q ? q.isScored !== false : true;
+      return q && (q.isScored === true || String(q.isScored) === 'true') && a.score !== null && a.score !== undefined;
     });
 
     const avgScore = hasScoredQuestionsInModule
@@ -402,9 +433,9 @@ const submitAnswerInDB = async (
 
     return {
       questionId,
-      isCorrect,
-      score: qScore,
-      correctAnswer: question.isScored !== false ? (question.correctAnswer || question.correctDirection) : undefined,
+      isCorrect: isQuestionScored ? isCorrect : undefined,
+      score: isQuestionScored ? qScore : null,
+      correctAnswer: isQuestionScored ? (question.correctAnswer || question.correctDirection) : undefined,
       explanation: question.explanation || '',
       completedQuestions,
       totalQuestions,
@@ -415,17 +446,19 @@ const submitAnswerInDB = async (
   }
 
   // Transient response for anonymous guest users
-  const hasScoredQuestionsInModule = module.questions.some((q: any) => q.isScored !== false);
+  const hasScoredQuestionsInModule = module.questions.some(
+    (q: any) => q.isScored === true || String(q.isScored) === 'true',
+  );
   return {
     questionId,
-    isCorrect,
-    score: qScore,
-    correctAnswer: question.isScored !== false ? (question.correctAnswer || question.correctDirection) : undefined,
+    isCorrect: isQuestionScored ? isCorrect : undefined,
+    score: isQuestionScored ? qScore : null,
+    correctAnswer: isQuestionScored ? (question.correctAnswer || question.correctDirection) : undefined,
     explanation: question.explanation || '',
     completedQuestions: 1,
     totalQuestions: module.questions.length,
     progressPercentage: Math.round((1 / module.questions.length) * 100),
-    moduleScore: hasScoredQuestionsInModule ? qScore : null,
+    moduleScore: hasScoredQuestionsInModule ? (isQuestionScored ? qScore : 0) : null,
     moduleStatus: 'in_progress',
   };
 };
@@ -442,7 +475,9 @@ const completeModuleInDB = async (
     throw new AppError(httpStatus.NOT_FOUND, 'Module not found');
   }
 
-  const hasScoredQuestionsInModule = module.questions.some((q: any) => q.isScored !== false);
+  const hasScoredQuestionsInModule = module.questions.some(
+    (q: any) => q.isScored === true || String(q.isScored) === 'true',
+  );
 
   if (userId && userId !== 'guest') {
     const user = await User.findById(userId);

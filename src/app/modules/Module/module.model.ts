@@ -23,7 +23,7 @@ const questionSchema = new Schema(
     content: { type: String },
     image: { type: String },
     explanation: { type: String },
-    isScored: { type: Boolean, default: true },
+    isScored: { type: Boolean, default: false },
     colorCode: { type: String },
     feedback: { type: String },
 

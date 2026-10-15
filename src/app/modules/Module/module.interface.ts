@@ -81,6 +81,8 @@ export interface IChatScenarioQuestion extends IQuestionBase {
 export interface IVideoQuestion extends IQuestionBase {
   type: 'Video';
   videoUrl: string;
+  options?: string[];
+  correctAnswer?: string;
 }
 
 export interface IRatingQuestion extends IQuestionBase {

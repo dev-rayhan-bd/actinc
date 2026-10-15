@@ -322,8 +322,8 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
         ? Math.round(scored.reduce((sum, p) => sum + (p.score || 0), 0) / scored.length)
         : 0;
 
-    // Estimate baseline as initial 75% of current score
-    const baseline = currentScore > 0 ? Math.max(30, Math.round(currentScore * 0.75)) : 0;
+    // Estimate baseline proportionally as 70% of current score
+    const baseline = currentScore > 0 ? Math.round(currentScore * 0.7) : 0;
 
     return {
       name: mod.title,
