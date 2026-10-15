@@ -236,6 +236,7 @@ interface CompanyDetailsData {
   stats: {
     activeParticipants: number;
     completionRate: number;
+    averageScore: number;
     organizationGrade: number;
   };
   barChart: {
@@ -310,7 +311,7 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
   const avgScore = scoredProgress.length > 0
     ? scoredProgress.reduce((sum, p) => sum + (p.score || 0), 0) / scoredProgress.length
     : 0;
-  const organizationGrade = Math.round(avgScore * 10) / 10; // 0-10 scale
+  const organizationGrade = Math.round(avgScore) / 10; // 0-10 scale (e.g. 84% -> 8.4)
 
   // Build Bar Chart Data using Module titles
   const barChartItems = modules.map((mod) => {
@@ -426,6 +427,7 @@ const getCompanyDetailsFromDB = async (companyId: string): Promise<CompanyDetail
     stats: {
       activeParticipants,
       completionRate,
+      averageScore: Math.round(avgScore),
       organizationGrade,
     },
     barChart,
