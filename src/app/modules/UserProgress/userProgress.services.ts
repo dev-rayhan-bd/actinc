@@ -6,7 +6,7 @@ import { Module } from '../Module/module.model';
 import { User } from '../User/user.model';
 import { Team } from '../Team/team.model';
 
-// ── Get My Learning Path (User Dashboard & Assigned Modules) ──
+// ── Get My Learning Path (User Dashboard & Assigned Modules) ──--
 const getMyLearningPathFromDB = async (
   userId?: string,
   queryStatus?: string,
